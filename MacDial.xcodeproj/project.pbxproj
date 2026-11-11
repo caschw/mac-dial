@@ -6,6 +6,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA0000000000000000000001 = {isa = PBXBuildFile; fileRef = AB0000000000000000000001; };
+		AA0000000000000000000002 = {isa = PBXBuildFile; fileRef = AB0000000000000000000002; };
+		AA0000000000000000000003 = {isa = PBXBuildFile; fileRef = A10000000000000000000005; };
+		AA0000000000000000000004 = {isa = PBXBuildFile; fileRef = A10000000000000000000007; };
+		AA0000000000000000000005 = {isa = PBXBuildFile; fileRef = A1000000000000000000000B; };
 		A20000000000000000000001 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* main.swift */; };
 		A20000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* AppDelegate.swift */; };
 		A20000000000000000000003 /* DialDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* DialDevice.swift */; };
@@ -29,6 +34,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AB0000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BehaviorTests.swift; sourceTree = "<group>"; };
+		AB0000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformDoubles.swift; sourceTree = "<group>"; };
+		AB0000000000000000000003 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = MacDialKitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000001 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A10000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A10000000000000000000003 /* DialDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialDevice.swift; sourceTree = "<group>"; };
@@ -70,7 +78,7 @@
 /* Begin PBXGroup section */
 		B10000000000000000000001 = {
 			isa = PBXGroup;
-			children = (B10000000000000000000002, B10000000000000000000009, B1000000000000000000000A, B1000000000000000000000B);
+			children = (B10000000000000000000002, AC0000000000000000000001, B10000000000000000000009, B1000000000000000000000A, B1000000000000000000000B);
 			sourceTree = "<group>";
 		};
 		B10000000000000000000002 /* MacDial */ = {
@@ -92,10 +100,22 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		B1000000000000000000000B /* Products */ = {isa = PBXGroup; children = (E10000000000000000000001); name = Products; sourceTree = "<group>"; };
+		B1000000000000000000000B /* Products */ = {isa = PBXGroup; children = (E10000000000000000000001, AB0000000000000000000003); name = Products; sourceTree = "<group>"; };
+		AC0000000000000000000001 = {isa = PBXGroup; children = (AB0000000000000000000001, AB0000000000000000000002); path = Tests/MacDialKitTests; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		AD0000000000000000000001 /* MacDialKitTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AE0000000000000000000001;
+			buildPhases = (AF0000000000000000000001);
+			buildRules = ();
+			dependencies = ();
+			name = MacDialKitTests;
+			productName = MacDialKitTests;
+			productReference = AB0000000000000000000003;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		C10000000000000000000002 /* MacDial */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D10000000000000000000002;
@@ -122,7 +142,7 @@
 			productRefGroup = B1000000000000000000000B;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (C10000000000000000000002);
+			targets = (C10000000000000000000002, AD0000000000000000000001);
 		};
 /* End PBXProject section */
 
@@ -131,6 +151,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AF0000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000001, AA0000000000000000000002, AA0000000000000000000003, AA0000000000000000000004, AA0000000000000000000005); runOnlyForDeploymentPostprocessing = 0; };
 		F10000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -147,6 +168,8 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		AE0000000000000000000002 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = local.macdial.MacDialKitTests; PRODUCT_NAME = "$(TARGET_NAME)"; }; name = Debug; };
+		AE0000000000000000000003 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = local.macdial.MacDialKitTests; PRODUCT_NAME = "$(TARGET_NAME)"; }; name = Release; };
 		D20000000000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -221,6 +244,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AE0000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (AE0000000000000000000002, AE0000000000000000000003); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		D10000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (D20000000000000000000001, D20000000000000000000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		D10000000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (D20000000000000000000003, D20000000000000000000004); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
