@@ -2,9 +2,18 @@
 
 ## Prerequisites
 
-Install full Xcode with a macOS SDK and complete its first-launch setup. Command
-Line Tools alone cannot build the checked-in application project. Check the
-selected toolchain with:
+Install full Xcode with a macOS SDK that provides SwiftUI's macOS 26
+`glassEffect` API, and complete its first-launch setup. Command Line Tools alone
+cannot build the checked-in application project. **Xcode 27.2 (27B52) has been
+verified**; a minimum supported Xcode version has not been established.
+
+The build SDK requirement is separate from the **macOS 14 runtime deployment
+target**. `Sources/MacDial/UI/Overlays.swift` references `glassEffect` inside a
+`#available(macOS 26.0, *)` check, with an AppKit material fallback on earlier
+systems. That check protects runtime execution; it does not let an older SDK
+compile an API it does not declare.
+
+Check the selected toolchain with:
 
 ```sh
 xcodebuild -version
@@ -12,16 +21,16 @@ xcode-select -p
 ```
 
 If needed, select your installed Xcode in **Xcode > Settings > Locations > Command
-Line Tools**. Use an Xcode release that can compile the source and build for
-macOS 14 or later; newer appearance APIs are availability-gated in the source.
-Apple Silicon is the primary development and hardware-validation platform.
+Line Tools**. Confirm that the selected Xcode includes the required SDK.
+Apple Silicon is the primary development platform; hardware-validation limits
+are described below.
 
 ## Xcode
 
 Open `MacDial.xcodeproj`, select the shared **MacDial** scheme and **My Mac**, and
 build or run. The project includes all Swift sources and the icon asset catalog.
-It replaces the previous SwiftPM and shell build; no dependency installation is
-required.
+The checked-in Xcode project is the authoritative build definition; no dependency
+installation is required.
 
 Both Debug and Release use marketing version `1.0`, build `1`, bundle identifier
 `local.macdial.MacDial`, and executable `MacDial` inside `Mac Dial.app`.

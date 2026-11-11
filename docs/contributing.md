@@ -24,8 +24,9 @@ keys, or Codable formats. Surface failures instead of silently reporting success
 
 ## Project and documentation
 
-Add new files under the matching source boundary and include them in the Xcode
-target exactly once. Resources belong under `Resources`; do not copy Info.plist
+Add new files under the matching source boundary and include them in their owning
+Xcode target exactly once. Do not duplicate future framework sources in the app
+target. Resources belong under `Resources`; do not copy Info.plist
 into the resources build phase. Keep the shared scheme checked in and personal
 Xcode settings and build artifacts out of Git.
 
@@ -45,7 +46,8 @@ paths, and attribution in the change and related documentation.
   app icon, minimum OS, menu-bar flag, privacy metadata, and local signature.
 - Confirm each Swift source and resource has exactly one target membership.
 - Add focused automated regression tests when changing behavior. No automated
-  test target is included in the current baseline.
+  test target currently exists; planned testability work is tracked in
+  [MacDialKit and behavior tests (#1)](https://github.com/caschw/mac-dial/issues/1).
 - With a Surface Dial, check pairing/connection, rotation and pressed rotation,
   click/double-click/hold, mode selection, haptics, sleep/wake, and disconnect.
 - Check settings save/reload and older exports, Accessibility/Input Monitoring/

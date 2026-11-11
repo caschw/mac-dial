@@ -10,14 +10,14 @@ For project lineage, licensing, and development documentation, see the [README](
 
 ## Features
 
-- **Native on Apple Silicon.** No third-party libraries. The dial is read through Apple's IOKit and everything is event driven, so the app uses almost no CPU while idle.
+- **Native on Apple Silicon.** No third-party libraries. Dial input is event driven through Apple's IOKit.
 - **Modes**, like the Surface Dial's "tools." Create as many as you like, and give each one its own:
   - **Turn** action
   - **Turn while pressed** action (hold the dial down and turn it)
   - **Click**, **double-click**, and **press & hold** actions
 - **Radial menu.** Press and hold the dial to open it, turn to highlight a mode, and click to choose it.
 - **Haptic feedback**: ticks while turning, plus a buzz when you change modes or move through the menu.
-- **Liquid Glass** radial menu and HUD on macOS 26, in light and dark mode.
+- **Liquid Glass** radial menu and HUD on macOS 26 or later, in light and dark mode; earlier supported macOS versions use an AppKit material fallback.
 - **Modern settings window** built with SwiftUI.
 - **Dial menu bar icon** in four styles (Dial, Outline, Solid, Color), or the current mode's icon. Pick one in Settings › Appearance.
 - Adjustable sensitivity, gesture timing, an on-screen label when you switch modes, and an option to open at login.

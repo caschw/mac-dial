@@ -12,9 +12,9 @@ menu-bar integration, windows, and system input require it.
 
 [diversifiedfun/mac-dial](https://github.com/diversifiedfun/mac-dial) is a planned
 source of visual and feature inspiration, especially its dial-menu look and feel.
-The current restructuring is not a UI redesign or feature port. Treat ports as
-separate, reviewed changes with explicit requirements, license review, and
-appropriate attribution. Do not imply that planned features already exist.
+Treat UI redesigns and feature ports as separate, reviewed changes with explicit
+requirements, license review, and appropriate attribution. Do not imply that
+planned features already exist.
 
 ## Architecture and compatibility
 
@@ -27,9 +27,11 @@ appropriate attribution. Do not imply that planned features already exist.
 - Do not reset settings when changing the app version. Preserve the
   `dialConfig.v2` and `dialPeripheralIdentifier` keys, Codable schema, enum raw
   values, and fallback decoding behavior; design and document migrations first.
-- Keep the checked-in Xcode project authoritative. Add every Swift file to the
-  app target exactly once, keep Resources membership correct, and keep the shared
-  `MacDial` scheme usable. Do not reintroduce a parallel SwiftPM or shell build.
+- Keep the checked-in Xcode project authoritative. Include each Swift file
+  exactly once in its owning target's Compile Sources phase, keep resource
+  membership correct, and keep the shared `MacDial` scheme usable. Future
+  framework sources belong in the framework target, not duplicated in the app.
+  Do not reintroduce a parallel SwiftPM or shell build.
 
 ## Swift and documentation standards
 

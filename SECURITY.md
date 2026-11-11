@@ -22,4 +22,4 @@ The application is not sandboxed because it reads HID input and generates system
 
 ## Verifying a download
 
-The checked-in Xcode project uses ad-hoc signing for local builds; that is not a verified publisher identity or notarization. This repository change does not establish a new release artifact. Build from reviewed source using the [build guide](docs/building.md). Do not bypass macOS security prompts for binaries whose origin you cannot verify.
+The checked-in Xcode project uses ad-hoc signing for local builds; that is not a verified publisher identity or notarization. Local build instructions do not cover release signing, notarization, or publication. Build from reviewed source using the [build guide](docs/building.md). Do not bypass macOS security prompts for binaries whose origin you cannot verify.
