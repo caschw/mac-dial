@@ -17,7 +17,7 @@ The Xcode project is configured for **version 1.0, build 1**. Local builds are a
 
 | Guide | Contents |
 |---|---|
-| [Building and local installation](docs/building.md) | Xcode, command-line builds, signing, permissions, and verification |
+| [Building and local installation](docs/building.md) | Xcode, builds, unit tests, signing, permissions, and verification |
 | [Using Mac Dial](docs/usage.md) | Pairing, modes, gestures, supported actions, and settings |
 | [Architecture](docs/architecture.md) | Source boundaries, input flow, persistence, and future migration |
 | [Contributing](docs/contributing.md) | Swift conventions, scope, attribution, and validation |
@@ -27,14 +27,16 @@ The Xcode project is configured for **version 1.0, build 1**. Local builds are a
 ## Repository layout
 
 ```text
-MacDial.xcodeproj/     macOS app target and shared MacDial scheme
+MacDial.xcodeproj/     App, MacDialKit, tests, and shared MacDial scheme
 Sources/MacDial/
   App/                Entry point and application lifecycle
   Device/             IOKit HID access and Bluetooth wake support
-  Input/              Gesture interpretation and orchestration
+  Input/              Input orchestration and main-run-loop scheduler
   Actions/            System, keyboard, mouse, and media actions
-  Settings/           Configuration, persistence, and SwiftUI settings
+  Settings/           Persistence, shortcut display, and SwiftUI settings
   UI/                 Menu bar, radial menu, HUD, and dial glyph
+Sources/MacDialKit/   Configuration, gestures, mode and rotation selection
+Tests/MacDialKitTests/ Hostless behavior tests with simulated input and clock
 Resources/            Info.plist and app icon asset catalog
 docs/                 Build, usage, architecture, and contribution guides
 ```

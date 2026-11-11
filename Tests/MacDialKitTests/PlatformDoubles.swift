@@ -1,18 +1,52 @@
 import Foundation
+import MacDialKit
 
-// Temporary characterization adapters: these never open devices or windows.
-final class DialDevice {
+final class TestClock: GestureScheduler {
+    final class Task: ScheduledGesture {
+        let deadline: TimeInterval
+        let action: () -> Void
+        var cancelled = false
+        init(deadline: TimeInterval, action: @escaping () -> Void) {
+            self.deadline = deadline
+            self.action = action
+        }
+        func cancel() { cancelled = true }
+    }
+
+    private(set) var now: TimeInterval = 0
+    private var tasks: [Task] = []
+    var pendingCount: Int { tasks.filter { !$0.cancelled }.count }
+
+    func schedule(after interval: TimeInterval, _ action: @escaping () -> Void) -> ScheduledGesture {
+        let task = Task(deadline: now + interval, action: action)
+        tasks.append(task)
+        return task
+    }
+
+    func advance(by interval: TimeInterval) {
+        let target = now + interval
+        while let task = tasks.filter({ !$0.cancelled && $0.deadline <= target })
+            .min(by: { $0.deadline < $1.deadline }) {
+            now = task.deadline
+            task.cancelled = true
+            task.action()
+        }
+        now = target
+        tasks.removeAll { $0.cancelled }
+    }
+}
+
+final class SimulatedDial {
     enum ButtonState { case pressed, released }
     var onButton: ((ButtonState) -> Void)?
     var onRotate: ((Int) -> Void)?
-    var stepsPerRevolution = 36
-    var detentHaptics = true
-    func buzz(repeatCount: Int = 0) {}
 }
 
-final class ActionEngine {
-    weak var settings: SettingsStore?
-    var onRadialMenu: (() -> Void)?
+final class TestConfiguration {
+    var config = DialConfig()
+}
+
+final class RecordingActions: DialActions {
     var performed: [ClickBinding] = []
     var rotations: [(RotationBinding, Int)] = []
     var mouseEvents: [(ClickAction, Bool)] = []
@@ -26,21 +60,33 @@ final class ActionEngine {
     }
 }
 
-final class RadialMenuController {
-    var onSelect: ((DialMode) -> Void)?
+final class RecordingMenu: DialMenu {
     var isVisible = false
     var moves: [Int] = []
     var confirmations = 0
-    func move(by delta: Int) -> Bool { moves.append(delta); return true }
+    var dismissals = 0
+    var selectionChanged = true
+    func move(by delta: Int) -> Bool { moves.append(delta); return selectionChanged }
     func confirm() { confirmations += 1 }
-    func dismiss() { isVisible = false }
-    func show(modes: [DialMode], selectedID: UUID, detentsPerItem: Int, atCursor: Bool) { isVisible = true }
+    func dismiss() { dismissals += 1; isVisible = false }
 }
 
-final class HUDController {
-    func show(icon: String, title: String) {}
-}
+final class GestureHarness {
+    let settings: TestConfiguration
+    let clock = TestClock()
+    let device = SimulatedDial()
+    let actions = RecordingActions()
+    let radial = RecordingMenu()
+    private(set) var buzzes = 0
+    private(set) var gestures: GestureInterpreter!
 
-final class BluetoothWaker {
-    var isEnabled = false
+    init(settings: TestConfiguration = TestConfiguration()) {
+        self.settings = settings
+        gestures = GestureInterpreter(configuration: { settings.config }, scheduler: clock,
+                                      actions: actions, menu: radial, buzz: { [weak self] in self?.buzzes += 1 })
+        device.onButton = { [weak self] state in
+            if state == .pressed { self?.gestures.buttonDown() } else { self?.gestures.buttonUp() }
+        }
+        device.onRotate = { [weak self] delta in self?.gestures.rotate(delta) }
+    }
 }

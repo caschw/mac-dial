@@ -45,9 +45,10 @@ paths, and attribution in the change and related documentation.
 - Inspect the packaged executable architecture, version, bundle identifier,
   app icon, minimum OS, menu-bar flag, privacy metadata, and local signature.
 - Confirm each Swift source and resource has exactly one target membership.
-- Add focused automated regression tests when changing behavior. No automated
-  test target currently exists; planned testability work is tracked in
-  [MacDialKit and behavior tests (#1)](https://github.com/caschw/mac-dial/issues/1).
+- Add focused automated regression tests when changing behavior. Run the
+  hostless `MacDialKitTests` target through the shared scheme, with coverage
+  when changing core logic; see [unit test commands](building.md#unit-tests).
+  Advance the test clock instead of sleeping or accessing real hardware.
 - With a Surface Dial, check pairing/connection, rotation and pressed rotation,
   click/double-click/hold, mode selection, haptics, sleep/wake, and disconnect.
 - Check settings save/reload and older exports, Accessibility/Input Monitoring/

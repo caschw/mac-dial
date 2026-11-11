@@ -19,9 +19,10 @@ planned features already exist.
 ## Architecture and compatibility
 
 - Read [docs/architecture.md](docs/architecture.md) before changing boundaries.
-- Keep device/report handling in `Device`, gestures in `Input`, generated events
-  in `Actions`, configuration and its settings views in `Settings`, presentation
-  in `UI`, and lifecycle/composition in `App`.
+- Keep device/report handling and concrete platform adapters in `MacDial`,
+  testable configuration, gestures, and rotation selection in `MacDialKit`,
+  and lifecycle/composition in `App`. Preserve the `Device`, `Input`, `Actions`,
+  `Settings`, and `UI` responsibility boundaries described in the architecture.
 - Preserve macOS 14 support, native Apple Silicon execution, menu-bar behavior,
   permissions, and `local.macdial.MacDial` unless a task explicitly changes them.
 - Do not reset settings when changing the app version. Preserve the
@@ -29,8 +30,8 @@ planned features already exist.
   values, and fallback decoding behavior; design and document migrations first.
 - Keep the checked-in Xcode project authoritative. Include each Swift file
   exactly once in its owning target's Compile Sources phase, keep resource
-  membership correct, and keep the shared `MacDial` scheme usable. Future
-  framework sources belong in the framework target, not duplicated in the app.
+  membership correct, and keep the shared `MacDial` scheme usable. MacDialKit
+  sources belong in the framework target, not duplicated in the app or tests.
   Do not reintroduce a parallel SwiftPM or shell build.
 
 ## Swift and documentation standards
@@ -55,6 +56,6 @@ information for copied code or assets; a link alone is not license permission.
 
 Use the shared scheme and [docs/building.md](docs/building.md). Build the affected
 configuration, check source/resource membership and packaged app metadata, and
-add focused tests for new behavior. No automated test target currently exists;
-do not report build success as a hardware or UI test. Use the contribution
+add focused tests for new behavior in the hostless MacDialKitTests target;
+do not report build or unit-test success as a hardware or UI test. Use the contribution
 checklist and state Surface Dial, permission, and macOS-version limits explicitly.

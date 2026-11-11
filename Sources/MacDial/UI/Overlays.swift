@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import MacDialKit
 
 /// Transparent, click-through panel that floats above everything (including
 /// full screen apps) without stealing focus.
@@ -99,7 +100,7 @@ struct RadialMenuView: View {
     }
 }
 
-final class RadialMenuController {
+final class RadialMenuController: DialMenu {
     var onSelect: ((DialMode) -> Void)?
     private(set) var isVisible = false
 

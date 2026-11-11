@@ -1,20 +1,5 @@
 import AppKit
-
-enum MenuBarGlyph: String, Codable, CaseIterable, Identifiable {
-    case twoTone, outline, solid, color, modeIcon
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .twoTone: return "Dial"
-        case .outline: return "Outline"
-        case .solid: return "Solid"
-        case .color: return "Color"
-        case .modeIcon: return "Mode icon"
-        }
-    }
-}
+import MacDialKit
 
 /// Draws the Surface Dial seen from slightly above: an aluminum puck with a
 /// light top face and a dark rubber foot.

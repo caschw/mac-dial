@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import CoreGraphics
+import MacDialKit
 
 // MARK: - Low level event synthesis
 
@@ -124,67 +125,34 @@ enum InputSynth {
 // MARK: - Action engine
 
 /// Executes the configured action for a rotation or click gesture.
-final class ActionEngine {
+final class ActionEngine: DialActions {
     weak var settings: SettingsStore?
     var onRadialMenu: (() -> Void)?
 
-    private var accumulator = 0
-    private var lastRotation = Date.distantPast
-    private var lastBindingKey = ""
+    private let rotation = RotationInterpreter()
+    private let scheduler: GestureScheduler
     private var appSwitchReleaseTimer: Timer?
     private var appSwitcherActive = false
+
+    init(scheduler: GestureScheduler) {
+        self.scheduler = scheduler
+    }
 
     // MARK: Rotation
 
     func rotate(_ binding: RotationBinding, delta: Int) {
-        guard binding.action != .none, delta != 0 else { return }
-        let now = Date()
-        let elapsed = now.timeIntervalSince(lastRotation)
-        lastRotation = now
-        let direction = binding.reversed ? -delta : delta
-
-        if binding.action.isContinuous {
-            continuous(binding, direction: direction, elapsed: elapsed)
-            return
-        }
-
-        // Discrete: fire once per `stepsPerAction` detents, reset on pause,
-        // direction change or switching to another binding.
-        let key = "\(binding.action.rawValue)-\(binding.stepsPerAction)"
-        if key != lastBindingKey || elapsed > 0.8 || (accumulator != 0 && (accumulator > 0) != (direction > 0)) {
-            accumulator = 0
-            lastBindingKey = key
-        }
-        accumulator += direction
-        let steps = max(1, binding.stepsPerAction)
-        while abs(accumulator) >= steps {
-            let sign = accumulator > 0 ? 1 : -1
-            discrete(binding, forward: sign > 0)
-            accumulator -= sign * steps
-        }
-    }
-
-    private func continuous(_ binding: RotationBinding, direction: Int, elapsed: TimeInterval) {
-        switch binding.action {
-        case .scrollVertical, .scrollHorizontal:
-            // Spinning faster scrolls further (up to ~4.75x).
-            let ms = min(elapsed * 1000, 150)
-            let acceleration = 1 + (150 - ms) / 40
-            let pixels = Int32((Double(direction) * 14 * binding.speed * acceleration).rounded())
-            if binding.action == .scrollVertical {
-                InputSynth.scroll(vertical: -pixels, horizontal: 0)
-            } else {
-                InputSynth.scroll(vertical: 0, horizontal: -pixels)
+        for effect in rotation.rotate(binding, delta: delta, at: scheduler.now) {
+            switch effect {
+            case let .scroll(vertical, horizontal):
+                InputSynth.scroll(vertical: vertical, horizontal: horizontal)
+            case let .auxiliary(action, increasing, repeatCount):
+                let key: InputSynth.AuxKey = action == .volume
+                    ? (increasing ? .soundUp : .soundDown)
+                    : (increasing ? .brightnessUp : .brightnessDown)
+                InputSynth.postAuxKey(key, modifiers: [.shift, .option], repeatCount: repeatCount)
+            case let .discrete(forward):
+                discrete(binding, forward: forward)
             }
-        case .volume:
-            // ⇧⌥ + volume key = quarter steps, for fine control.
-            InputSynth.postAuxKey(direction > 0 ? .soundUp : .soundDown, modifiers: [.shift, .option],
-                                  repeatCount: abs(direction) * max(1, Int(binding.speed.rounded())))
-        case .brightness:
-            InputSynth.postAuxKey(direction > 0 ? .brightnessUp : .brightnessDown, modifiers: [.shift, .option],
-                                  repeatCount: abs(direction) * max(1, Int(binding.speed.rounded())))
-        default:
-            break
         }
     }
 

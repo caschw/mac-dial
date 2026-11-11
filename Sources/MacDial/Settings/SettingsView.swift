@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import MacDialKit
 
 final class AppStatus: ObservableObject {
     @Published var connected = false

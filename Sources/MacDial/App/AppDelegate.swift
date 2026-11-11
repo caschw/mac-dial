@@ -13,7 +13,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        controller = DialController(device: device, settings: settings)
+        let scheduler = MainRunLoopScheduler()
+        controller = DialController(device: device, settings: settings, actions: ActionEngine(scheduler: scheduler),
+                                    radial: RadialMenuController(), hud: HUDController(),
+                                    waker: BluetoothWaker(), scheduler: scheduler)
         statusBar = StatusBarController(settings: settings, device: device)
         statusBar.onOpenSettings = { [weak self] in self?.showSettings() }
         statusBar.onShowRadialMenu = { [weak self] in self?.controller.showRadialMenu() }
