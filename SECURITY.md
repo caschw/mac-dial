@@ -1,21 +1,12 @@
 # Security Policy
 
-## Supported versions
-
-| Version | Supported |
-|---|---|
-| 2.x | ✅ |
-| < 2.0 | ❌ |
-
-Only the latest release gets security fixes.
-
 ## Reporting a vulnerability
 
 Please **don't open a public issue** for security problems.
 
-Report them privately through GitHub instead: go to the **Security** tab of this repository and click **Report a vulnerability**. Include what you found, how to reproduce it, and which macOS version you're on.
+Use [GitHub private vulnerability reporting](https://github.com/caschw/mac-dial/security/advisories/new): open this repository's **Security** tab and choose **Report a vulnerability**. Include the affected commit or build, macOS version, reproduction steps, impact, and any proposed mitigation. Remove personal data and credentials from logs or attachments.
 
-You should get a reply within a week. If the report is confirmed, a fix will go out in a new release and you'll be credited, unless you'd rather not be.
+Coordinate disclosure privately with the maintainer. Do not publish exploit details in public issues or pull requests while a report is being assessed.
 
 ## What the app can access
 
@@ -23,9 +14,12 @@ Mac Dial asks for these permissions, and only uses them for the dial:
 
 - **Accessibility**: to send the scroll, click, and keyboard events you set up for the dial.
 - **Input Monitoring** (only if macOS asks): to read input from the Surface Dial over Bluetooth.
+- **Bluetooth**: to reconnect to the paired dial for the optional instant-wake feature.
 
-Mac Dial makes **no network connections**, collects no data, and has no analytics or auto-updater. Your settings are stored locally in `UserDefaults`.
+The app has no internet networking, analytics, or auto-updater. Bluetooth communication is local to the dial. Configuration and the remembered Bluetooth peripheral identifier are stored locally in `UserDefaults`. Exported settings files may contain your shortcuts and app paths; review them before sharing.
+
+The application is not sandboxed because it reads HID input and generates system input. Grant permissions only to builds you trust.
 
 ## Verifying a download
 
-Release builds are ad-hoc signed, not notarized, because the project has no paid Apple Developer account. If you'd rather not trust a prebuilt binary, build it yourself from source with `./build.sh` (see the README). It only needs Apple's free Command Line Tools.
+The checked-in Xcode project uses ad-hoc signing for local builds; that is not a verified publisher identity or notarization. Local build instructions do not cover release signing, notarization, or publication. Build from reviewed source using the [build guide](docs/building.md). Do not bypass macOS security prompts for binaries whose origin you cannot verify.
