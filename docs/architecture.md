@@ -57,8 +57,10 @@ token; completed actions are not retained as pending gestures.
 
 ### Radial menu
 
-`GestureInterpreter` drives the menu only through `DialMenu` (`show`, `move`,
-`confirm`, `dismiss`). `RadialMenuController` owns a
+The long-press action opens the menu through `DialController.showRadialMenu()`,
+which calls `RadialMenuController.show`. After that, `GestureInterpreter` drives
+it only through `DialMenu` (`isVisible`, `move`, `confirm`, `dismiss`).
+`RadialMenuController` owns a
 `RadialMenuNavigation` built from the enabled modes; confirming a group pushes a
 frame whose first slot is **Back**, confirming **Back** pops it, and only a leaf
 selection closes the menu and selects a mode. `GlassDialModel` projects the
