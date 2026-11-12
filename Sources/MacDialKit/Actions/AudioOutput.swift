@@ -3,6 +3,8 @@ import Foundation
 public enum AudioOutputConnection: Equatable {
     case usb
     case bluetooth
+    case bluetoothSpeaker
+    case bluetoothHeadphones
     case builtIn
     case unknown
 
@@ -10,8 +12,29 @@ public enum AudioOutputConnection: Equatable {
         switch self {
         case .usb: return "cable.connector"
         case .bluetooth: return "antenna.radiowaves.left.and.right"
+        case .bluetoothSpeaker: return "hifispeaker"
+        case .bluetoothHeadphones: return "headphones"
         case .builtIn: return "macbook.gen2"
         case .unknown: return "speaker.wave.2.fill"
+        }
+    }
+
+    /// Core Audio Bluetooth UIDs use a six-byte address followed by ":output".
+    /// Class values are the Bluetooth assigned major/minor numbers, not a packed class.
+    public static func bluetoothConnection(outputUID: String, pairedAddress: String,
+                                           majorClass: UInt32, minorClass: UInt32) -> AudioOutputConnection? {
+        guard outputUID.hasSuffix(":output") else { return nil }
+        let address = String(outputUID.dropLast(":output".count))
+        let pattern = "\\A(?:[0-9A-Fa-f]{2}(?:-[0-9A-Fa-f]{2}){5}|[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})\\z"
+        guard address.range(of: pattern, options: .regularExpression) != nil,
+              pairedAddress.range(of: pattern, options: .regularExpression) != nil,
+              address.replacingOccurrences(of: ":", with: "-").lowercased()
+                == pairedAddress.replacingOccurrences(of: ":", with: "-").lowercased() else { return nil }
+        guard majorClass == 0x04 else { return .bluetooth }
+        switch minorClass {
+        case 0x01, 0x06: return .bluetoothHeadphones
+        case 0x05: return .bluetoothSpeaker
+        default: return .bluetooth
         }
     }
 }
@@ -138,7 +161,7 @@ public enum AudioOutputMenu {
             }
             var children: [RadialMenuItem<DialMenuChoice>] = [
                 .leaf(id: "\(mode.id.uuidString).system-default", title: "System default",
-                      symbol: "hifispeaker", payload: .systemDefaultAudioOutput)
+                      symbol: "speaker", payload: .systemDefaultAudioOutput)
             ]
             children += preferences.eligibleOutputs(outputs).map {
                 .leaf(id: "\(mode.id.uuidString).output.\($0.uid)", title: $0.name,

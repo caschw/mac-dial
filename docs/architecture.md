@@ -96,7 +96,12 @@ device UID; selection clears `selectedUID` and uses the existing system-volume
 key path. The arc highlights this leaf when following macOS rather than the
 current default device. Live transport metadata maps USB, Bluetooth (including
 LE), and built-in devices to connection-specific symbols. Missing or unknown
-transport types retain the speaker symbol; failed transport reads are reported
+transport types retain the speaker symbol. With the existing Bluetooth grant,
+IOBluetooth's paired-device class distinguishes speakers and headphones/headsets.
+Strictly validated Bluetooth addresses match output UIDs; names are not used for
+matching or guessing device types. Missing metadata, unmatched identities, and
+unavailable permission retain the Bluetooth symbol without requesting a new grant.
+System default uses `speaker`. Failed transport reads are reported
 without excluding otherwise usable devices. This metadata is not persisted.
 Settings retains disabled UID/name records even when disconnected, while new
 supported devices are eligible unless disabled. The selected UID is independent

@@ -430,7 +430,7 @@ struct AudioOutputSettings: View {
             }
         }
         Section("Available Outputs") {
-            Label("System default", systemImage: "hifispeaker")
+            Label("System default", systemImage: "speaker")
             Text("Always available on the dial; follows the macOS sound output.")
                 .font(.callout).foregroundStyle(.secondary)
             if audio.outputs.isEmpty {

@@ -74,9 +74,11 @@ to seven options at once, with dots at either end when more are available.
 outputs that support software volume control. **System default** is always available,
 even when every device is hidden or discovery fails. Selecting it clears the
 remembered device and follows macOS's current output, including later changes.
-USB devices use `cable.connector`, Bluetooth devices use
-`antenna.radiowaves.left.and.right`, built-in devices use `macbook.gen2`, and
-System default uses `hifispeaker`. Other or unknown connections retain the speaker
+USB devices use `cable.connector`. With Bluetooth permission, paired Bluetooth
+speakers use `hifispeaker` and headphones/headsets use `headphones`, based on
+their reported device class. Unclassified Bluetooth devices retain
+`antenna.radiowaves.left.and.right`. Built-in devices use `macbook.gen2`, and
+System default uses `speaker`. Other or unknown connections retain the speaker
 icon. Device discovery stays live while the app and
 menu are open. An output selection closes the menu, shows
 **Volume output changed to [device name]** (when on-screen labels are enabled),

@@ -157,7 +157,7 @@ final class AudioOutputTests: XCTestCase {
         if case .selectedLeaf(let item) = navigation.confirm(),
            case .leaf(.systemDefaultAudioOutput) = item.content {
             XCTAssertEqual(item.title, "System default")
-            XCTAssertEqual(item.symbol, "hifispeaker")
+            XCTAssertEqual(item.symbol, "speaker")
         } else { XCTFail("System default must be selectable even without controllable devices") }
         try navigation.replaceItems(AudioOutputMenu.items(modes: [mode], outputs: [speakers],
                                                          preferences: AudioOutputPreferences()))
@@ -205,7 +205,8 @@ final class AudioOutputTests: XCTestCase {
 
     func testDiscoveredConnectionsDriveArcIconsAndRefreshWithoutChangingIdentity() throws {
         let hardware = FakeAudioHardware()
-        let connections: [AudioOutputConnection] = [.usb, .bluetooth, .builtIn, .unknown]
+        let connections: [AudioOutputConnection] = [.usb, .bluetooth, .builtIn, .unknown,
+                                                    .bluetoothSpeaker, .bluetoothHeadphones]
         for (index, connection) in connections.enumerated() {
             let handle = UInt32(index + 1)
             hardware.add(handle, uid: "device-\(handle)", name: "Device \(handle)", channels: [2], main: 0.5)
@@ -220,15 +221,50 @@ final class AudioOutputTests: XCTestCase {
             selectedID: mode.id.uuidString, detentsPerItem: 1)
         _ = navigation.confirm()
         XCTAssertEqual(navigation.current.slots.compactMap(\.item).map(\.symbol),
-                       ["hifispeaker", "cable.connector", "antenna.radiowaves.left.and.right",
-                        "macbook.gen2", "speaker.wave.2.fill"])
+                       ["speaker", "cable.connector", "antenna.radiowaves.left.and.right",
+                        "macbook.gen2", "speaker.wave.2.fill", "hifispeaker", "headphones"])
         let id = "\(mode.id.uuidString).output.device-1"
         XCTAssertTrue(navigation.selectItem(id: id))
-        hardware.devices[1]?.connection = .bluetooth
+        hardware.devices[1]?.connection = .bluetoothHeadphones
         try navigation.replaceItems(AudioOutputMenu.items(modes: [mode], outputs: core(hardware).discover().outputs,
                                                          preferences: AudioOutputPreferences()))
         XCTAssertEqual(navigation.current.selectedSlot.item?.id, id)
-        XCTAssertEqual(navigation.current.selectedSlot.item?.symbol, "antenna.radiowaves.left.and.right")
+        XCTAssertEqual(navigation.current.selectedSlot.item?.symbol, "headphones")
+    }
+
+    func testBluetoothClassesRequireMatchingValidOutputAddresses() {
+        let uid = "AA-BB-CC-DD-EE-FF:output"
+        let address = "aa:bb:cc:dd:ee:ff"
+        for (minor, expected): (UInt32, AudioOutputConnection) in [
+            (0, .bluetooth), (1, .bluetoothHeadphones), (2, .bluetooth),
+            (4, .bluetooth), (5, .bluetoothSpeaker), (6, .bluetoothHeadphones),
+            (7, .bluetooth), (UInt32.max, .bluetooth)
+        ] {
+            XCTAssertEqual(AudioOutputConnection.bluetoothConnection(
+                outputUID: uid, pairedAddress: address, majorClass: 4, minorClass: minor), expected)
+        }
+        for major: UInt32 in [0, 3, 5, UInt32.max] {
+            XCTAssertEqual(AudioOutputConnection.bluetoothConnection(
+                outputUID: uid, pairedAddress: address, majorClass: major, minorClass: 6), .bluetooth)
+        }
+        for invalid in ["", "AA-BB-CC-DD-EE:output", "AA-BB-CC-DD-EE-FFF:output",
+                        "AA-BB-CC-DD-EE-GG:output", "AA-BB-CC-DD-EE-FF:input",
+                        "AA-BB-CC-DD-EE-FF", "AA-BB-CC-DD-EE-00:output",
+                        "AA:BB-CC-DD-EE-FF:output", "AA-BB-CC-DD-EE-FF:output\n"] {
+            XCTAssertNil(AudioOutputConnection.bluetoothConnection(
+                outputUID: invalid, pairedAddress: address, majorClass: 4, minorClass: 6))
+        }
+        for invalid in ["", "aa:bb:cc:dd:ee", "aa:bb:cc:dd:ee:fff", "aa:bb:cc:dd:ee:gg",
+                        "aa:bb-cc:dd:ee:ff", "aa:bb:cc:dd:ee:00", "aa:bb:cc:dd:ee:ff\n"] {
+            XCTAssertNil(AudioOutputConnection.bluetoothConnection(
+                outputUID: uid, pairedAddress: invalid, majorClass: 4, minorClass: 6))
+        }
+        XCTAssertEqual(AudioOutputConnection.bluetoothConnection(
+            outputUID: "00-00-00-00-00-00:output", pairedAddress: "00-00-00-00-00-00",
+            majorClass: 4, minorClass: 5), .bluetoothSpeaker)
+        XCTAssertEqual(AudioOutputConnection.bluetoothConnection(
+            outputUID: "ff:ff:ff:ff:ff:ff:output", pairedAddress: "FF-FF-FF-FF-FF-FF",
+            majorClass: 4, minorClass: 6), .bluetoothHeadphones)
     }
 
     func testConnectionReadFailureKeepsOutputUsableAndReportsFailure() throws {

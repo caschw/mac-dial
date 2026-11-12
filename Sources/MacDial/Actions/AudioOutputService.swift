@@ -1,6 +1,8 @@
 import Foundation
 import Combine
 import CoreAudio
+import CoreBluetooth
+import IOBluetooth
 import MacDialKit
 
 /// Core Audio ownership stays in the app; callbacks and clients use the main queue.
@@ -118,7 +120,19 @@ final class AudioOutputService: ObservableObject, AudioHardware {
         let transport = try scalar(device, selector: kAudioDevicePropertyTransportType, initial: UInt32(0))
         switch transport {
         case kAudioDeviceTransportTypeUSB: return .usb
-        case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: return .bluetooth
+        case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE:
+            // Reading paired devices requires the app's existing Bluetooth grant.
+            guard CBManager.authorization == .allowedAlways else { return .bluetooth }
+            let outputUID = try uid(of: device)
+            for case let paired as IOBluetoothDevice in IOBluetoothDevice.pairedDevices() ?? [] {
+                guard let pairedAddress = paired.addressString else { continue }
+                if let connection = AudioOutputConnection.bluetoothConnection(
+                    outputUID: outputUID, pairedAddress: pairedAddress,
+                    majorClass: UInt32(paired.deviceClassMajor), minorClass: UInt32(paired.deviceClassMinor)) {
+                    return connection
+                }
+            }
+            return .bluetooth
         case kAudioDeviceTransportTypeBuiltIn: return .builtIn
         default: return .unknown
         }

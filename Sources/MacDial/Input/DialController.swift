@@ -121,7 +121,7 @@ final class DialController {
             settings.config.audioOutput.selectedUID = nil
             gestures.resetGesture()
             if settings.config.showHUD {
-                hud.show(icon: "hifispeaker", title: "Volume output changed to System default")
+                hud.show(icon: "speaker", title: "Volume output changed to System default")
             }
             return true
         case .audioOutput(let uid):
