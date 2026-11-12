@@ -248,20 +248,23 @@ private struct RootDialView: View {
         let sectors = RadialMenuGeometry.rootSectors(count: model.rootSlots.count)
         let span = sectors.first?.span ?? 360
         let inset = span < 360 ? min(1.5, span / 4) : 0
+        let selectionDegrees = span * Double(model.rootContinuousSelection)
         let dividerColor = Color.primary.opacity(contrast == .increased ? 0.55 : 0.14)
 
         ZStack {
             Circle().stroke(dividerColor, lineWidth: 0.5)
             if !sectors.isEmpty {
                 ZStack {
-                    AnnularSector(startDegrees: -span / 2, endDegrees: span / 2,
-                                  innerRadius: innerRadius, outerRadius: radius - 2)
-                        .fill(Color.primary.opacity(0.1))
-                    SelectionArc(startDegrees: -span / 2 + inset, endDegrees: span / 2 - inset,
+                    GlassSurface(
+                        shape: AnnularSector(startDegrees: selectionDegrees - span / 2,
+                                             endDegrees: selectionDegrees + span / 2,
+                                             innerRadius: innerRadius, outerRadius: radius - 2),
+                        fill: Color.primary.opacity(0.1))
+                    SelectionArc(startDegrees: selectionDegrees - span / 2 + inset,
+                                 endDegrees: selectionDegrees + span / 2 - inset,
                                  radius: radius - 2.5)
                         .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 }
-                .rotationEffect(.degrees(span * Double(model.rootContinuousSelection)))
             }
 
             RadialDividers(angles: sectors.count > 1 ? sectors.map(\.start) : [],
@@ -296,9 +299,10 @@ private struct ArcView: View {
             if let first = sectors.first, let last = sectors.last {
                 ZStack {
                     if let selected = sectors[safe: arc.selected] {
-                        AnnularSector(startDegrees: selected.start + 1, endDegrees: selected.end - 1,
-                                      innerRadius: inner + 3, outerRadius: outer - 3)
-                            .fill(Color.primary.opacity(0.1))
+                        GlassSurface(
+                            shape: AnnularSector(startDegrees: selected.start + 1, endDegrees: selected.end - 1,
+                                                 innerRadius: inner + 3, outerRadius: outer - 3),
+                            fill: Color.primary.opacity(0.1))
                         SelectionArc(startDegrees: selected.start + 1.5, endDegrees: selected.end - 1.5,
                                      radius: outer - 2.5)
                             .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
@@ -338,7 +342,7 @@ private struct SlotIcon: View {
         Image(systemName: slot.symbol)
             .font(.system(size: 17, weight: isSelected ? .semibold : .regular))
             .foregroundStyle(Color.primary.opacity(isSelected ? 1 : 0.82))
-            .shadow(color: Color(nsColor: .windowBackgroundColor).opacity(0.7), radius: 2)
+            .shadow(color: Color(nsColor: .windowBackgroundColor).opacity(1.0), radius: 4)
             .frame(width: size, height: size)
             .overlay(alignment: .bottomTrailing) {
                 if slot.kind == .group {
@@ -355,8 +359,8 @@ private struct CenterWell: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        Circle()
-            .fill(Color(nsColor: .windowBackgroundColor).opacity(contrast == .increased ? 0.85 : 0.55))
+        GlassSurface(shape: Circle(),
+                     fill: Color(Color.gray).opacity(contrast == .increased ? 0.35 : 0.05))
             .overlay(Circle().stroke(Color.primary.opacity(contrast == .increased ? 0.55 : 0.14), lineWidth: 0.5))
             .frame(width: GlassDialView.centerRadius * 2, height: GlassDialView.centerRadius * 2)
     }
@@ -411,12 +415,26 @@ private struct DialGlass<S: SwiftUI.Shape>: View {
                 shape.fill(Color(nsColor: .windowBackgroundColor))
             } else {
                 // Attenuate only the material, not the labels or icons above it.
-                Color.clear
-                    .glassEffect(.clear.tint(Color.accentColor.opacity(0.05)).interactive(), in: shape)
+                GlassSurface(shape: shape, fill: .clear)
                     .opacity(contrast == .increased ? 1.0 : 0.85)
             }
             shape.stroke(Color.primary.opacity(contrast == .increased ? 0.6 : 0.14),
                          lineWidth: contrast == .increased ? 1 : 0.5)
+        }
+    }
+}
+
+private struct GlassSurface<S: SwiftUI.Shape>: View {
+    let shape: S
+    let fill: Color
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        if reduceTransparency {
+            shape.fill(fill)
+        } else {
+            shape.fill(fill)
+                .glassEffect(.clear.tint(Color.accentColor.opacity(0.03)).interactive(), in: shape)
         }
     }
 }
@@ -456,6 +474,25 @@ private enum GlassDialFixtures {
 #Preview("Root") {
     GlassDialView(model: GlassDialModel(rootSlots: GlassDialFixtures.root, rootSelected: 1))
         .padding()
+}
+
+#Preview("Selection motion") {
+    @Previewable @StateObject var model = GlassDialModel(rootSlots: GlassDialFixtures.root, rootSelected: 3)
+
+    VStack {
+        GlassDialView(model: model)
+        HStack {
+            ForEach([-1, 1], id: \.self) { step in
+                Button(step < 0 ? "Previous" : "Next") {
+                    let selection = model.rootContinuousSelection + step
+                    let count = model.rootSlots.count
+                    model.rootSelected = (selection % count + count) % count
+                    model.rootContinuousSelection = selection
+                }
+            }
+        }
+    }
+    .padding()
 }
 
 #Preview("Nested arc") {

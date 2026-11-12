@@ -71,7 +71,12 @@ selected root sector and windowed to seven slots by
 The root and active arc share one continuous glass contour, with the arc's
 inner radius equal to the unscaled root radius. Only the glass background is
 attenuated for transparency; icons and labels are separate foreground layers.
-Reduce Transparency substitutes an opaque background for the entire contour.
+The outer contour, center well, and selected sectors share `GlassSurface`
+styling as separate native glass surfaces, while the selection's accent rim
+stays in the foreground. Root selection animates the sector and rim paths in a
+fixed view rather than rotating the glass host, which can displace the native
+material outside the dial. Reduce Transparency substitutes an opaque
+background for the entire contour and omits the inset glass effects.
 `DialController` dismisses an open menu when the enabled modes or steps per
 revolution change. Production menus are currently a single level; the settings
 schema has no nested-menu representation.
