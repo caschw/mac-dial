@@ -15,9 +15,9 @@ For project lineage, licensing, and development documentation, see the [README](
   - **Turn** action
   - **Turn while pressed** action (hold the dial down and turn it)
   - **Click**, **double-click**, and **press & hold** actions
-- **Radial menu.** Press and hold the dial to open it, turn to highlight a mode, and click to choose it.
+- **Radial menu.** Press and hold the dial to open it, turn to highlight a mode, and click to choose it. The translucent glass dial marks the selected wedge with an accent along its outer edge; the center shows the highlighted name and what a click will do.
 - **Haptic feedback**: ticks while turning, plus a buzz when you change modes or move through the menu.
-- **Liquid Glass** radial menu and HUD on macOS 26 or later, in light and dark mode; earlier supported macOS versions use an AppKit material fallback.
+- **Liquid Glass** radial menu and HUD, in light and dark mode. The menu respects Reduce Transparency, Reduce Motion, and Increase Contrast.
 - **Modern settings window** built with SwiftUI.
 - **Dial menu bar icon** in four styles (Dial, Outline, Solid, Color), or the current mode's icon. Pick one in Settings › Appearance.
 - Adjustable sensitivity, gesture timing, an on-screen label when you switch modes, and an option to open at login.
@@ -59,11 +59,24 @@ If a mode only uses a mouse click, with no double-click, press & hold, or turn-w
 
 In every mode, **press & hold** opens the radial menu. Everything can be changed in Settings.
 
+### Radial menu
+
+Turn to move the highlight and click to choose. The menu closes after six
+seconds of inactivity, or when the enabled modes or sensitivity change while it
+is open.
+
+The menu supports nested items: clicking an item marked with a chevron opens an
+outer glass arc attached directly to the circle with that item's options. The
+arc starts with a **Back** item; clicking it returns to the previous level. Long submenus show up
+to seven options at once, with dots at either end when more are available.
+Today the menu lists your enabled modes as a single level, so submenus appear
+only when nested items are provided.
+
 ---
 
 ## Set up the app
 
-**Requires macOS 14 Sonoma or later.** Built for Apple Silicon Macs.
+**Requires macOS 26 Tahoe or later.** Built for Apple Silicon Macs.
 
 1. [Build from source](building.md), then copy **Mac Dial.app** to your **Applications** folder.
 2. Open it. Local builds are ad-hoc signed, not notarized. Only approve a build you trust if macOS asks you to review it in **System Settings > Privacy & Security**.

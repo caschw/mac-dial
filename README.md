@@ -6,7 +6,7 @@ Mac Dial reads the dial through Apple's IOKit rather than relying on macOS's mou
 
 ## Requirements and installation
 
-- macOS 14 Sonoma or later; Apple Silicon is the primary development platform.
+- macOS 26 Tahoe or later; Apple Silicon is the primary development platform.
 - A paired Microsoft Surface Dial for hardware input.
 - Full Xcode with a macOS SDK providing SwiftUI's macOS 26 `glassEffect` API to build the app; Command Line Tools alone are not sufficient. Xcode 27.2 is verified; see [build prerequisites](docs/building.md#prerequisites).
 - Accessibility permission for generated input; Bluetooth permission for instant wake, and Input Monitoring if requested by macOS.
@@ -34,7 +34,7 @@ Sources/MacDial/
   Input/              Input orchestration and main-run-loop scheduler
   Actions/            System, keyboard, mouse, and media actions
   Settings/           Persistence, shortcut display, and SwiftUI settings
-  UI/                 Menu bar, radial menu, HUD, and dial glyph
+  UI/                 Menu bar, glass radial menu, HUD, and dial glyph
 Sources/MacDialKit/   Configuration, gestures, mode and rotation selection
 Tests/MacDialKitTests/ Hostless behavior tests with simulated input and clock
 Resources/            Info.plist and app icon asset catalog
@@ -45,7 +45,7 @@ docs/                 Build, usage, architecture, and contribution guides
 
 This project builds on [andreasjhkarlsson/mac-dial](https://github.com/andreasjhkarlsson/mac-dial) and the native Apple Silicon foundation from [camerondehart/mac-dial-AppleSilicon](https://github.com/camerondehart/mac-dial-AppleSilicon). Thanks to Andreas Karlsson for the original app and HID protocol work, and to [daniel5151/surface-dial-linux](https://github.com/daniel5151/surface-dial-linux) for haptics protocol reference.
 
-[diversifiedfun/mac-dial](https://github.com/diversifiedfun/mac-dial) is a future visual and feature reference, especially for a more modern dial menu. Feature ports and a menu redesign are planned work, not implemented functionality. Future work should retain a primarily SwiftUI application and native IOKit dial support; see the [architecture direction](docs/architecture.md#future-migration).
+The glass radial menu takes visual inspiration from [diversifiedfun/mac-dial](https://github.com/diversifiedfun/mac-dial) (revision `3bb6d4baac2f`); it is an original SwiftUI implementation with no copied code or assets. Other feature ports from that project are planned work, not implemented functionality. Future work should retain a primarily SwiftUI application and native IOKit dial support; see the [architecture direction](docs/architecture.md#future-migration).
 
 ## License
 

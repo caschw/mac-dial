@@ -44,94 +44,41 @@ final class OverlayPanel: NSPanel {
 
 // MARK: - Radial menu
 
-final class RadialMenuModel: ObservableObject {
-    @Published var modes: [DialMode] = []
-    @Published var selected = 0
-    /// Unwrapped selection so the indicator animates the short way round.
-    @Published var continuousSelection = 0
-}
-
-struct RadialMenuView: View {
-    @ObservedObject var model: RadialMenuModel
-    static let diameter: CGFloat = 228
-    private let itemSize: CGFloat = 40
-
-    var body: some View {
-        let count = max(model.modes.count, 1)
-        let radius = Self.diameter / 2 - itemSize / 2 - 12
-        let slice = 2 * Double.pi / Double(count)
-        let selectedMode = model.modes.indices.contains(model.selected) ? model.modes[model.selected] : nil
-
-        ZStack {
-            // Soft selection halo, rotated around the ring so it travels
-            // along the circle instead of cutting across it.
-            Circle()
-                .fill(Color.accentColor.opacity(0.18))
-                .overlay(Circle().strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.75))
-                .frame(width: itemSize, height: itemSize)
-                .offset(y: -radius)
-                .rotationEffect(.radians(slice * Double(model.continuousSelection)))
-
-            ForEach(Array(model.modes.enumerated()), id: \.element.id) { index, mode in
-                let angle = -Double.pi / 2 + slice * Double(index)
-                let isSelected = index == model.selected
-                Image(systemName: mode.icon)
-                    .font(.system(size: 15, weight: isSelected ? .medium : .regular))
-                    .foregroundStyle(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
-                    .frame(width: itemSize, height: itemSize)
-                    .offset(x: cos(angle) * radius, y: sin(angle) * radius)
-            }
-
-            VStack(spacing: 2) {
-                Text(selectedMode?.name ?? "")
-                    .font(.system(size: 13, weight: .medium))
-                    .contentTransition(.interpolate)
-                Text("Click to choose")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(width: 100)
-        }
-        .frame(width: Self.diameter, height: Self.diameter)
-        // Glass only behind the content, so icons and text stay sharp.
-        .glassBackground(in: Circle())
-        .padding(30)
-        .animation(.smooth(duration: 0.22), value: model.continuousSelection)
-    }
-}
-
+/// Shows the glass dial and drives nested submenus with `RadialMenuNavigation`.
 final class RadialMenuController: DialMenu {
     var onSelect: ((DialMode) -> Void)?
     private(set) var isVisible = false
 
-    private let model = RadialMenuModel()
+    private let model = GlassDialModel()
     private lazy var panel: OverlayPanel = {
-        let size = NSSize(width: RadialMenuView.diameter + 60, height: RadialMenuView.diameter + 60)
-        let panel = OverlayPanel(size: size)
-        panel.contentView = NSHostingView(rootView: RadialMenuView(model: model))
+        let panel = OverlayPanel(size: GlassDialView.footprint)
+        panel.contentView = NSHostingView(rootView: GlassDialView(model: model))
         return panel
     }()
-    private var selection: RadialMenuSelection?
+    private var navigation: RadialMenuNavigation<DialMode>?
     private var idleTimer: Timer?
 
     func show(modes: [DialMode], selectedID: UUID, detentsPerItem: Int, atCursor: Bool) {
-        let selected = modes.firstIndex(where: { $0.id == selectedID }) ?? 0
-        guard let selection = RadialMenuSelection(itemCount: modes.count, selected: selected,
-                                                  detentsPerItem: detentsPerItem) else {
-            NSLog("MacDial: ignoring invalid radial menu configuration")
+        let items = modes.map {
+            RadialMenuItem(id: $0.id.uuidString, title: $0.name, symbol: $0.icon, content: .leaf($0))
+        }
+        show(items: items, selectedID: selectedID.uuidString, detentsPerItem: detentsPerItem, atCursor: atCursor)
+    }
+
+    func show(items: [RadialMenuItem<DialMode>], selectedID: String?, detentsPerItem: Int, atCursor: Bool) {
+        do {
+            navigation = try RadialMenuNavigation(items: items, selectedID: selectedID,
+                                                  detentsPerItem: detentsPerItem)
+        } catch {
+            NSLog("MacDial: ignoring invalid radial menu configuration: %@", String(describing: error))
             return
         }
-        self.selection = selection
-        model.modes = modes
-        model.selected = selected
-        model.continuousSelection = model.selected
+        refreshModel()
 
-        let size = panel.frame.size
-        let screen = OverlayPanel.screenUnderCursor()
-        let visible = screen?.visibleFrame ?? .zero
-        var center = atCursor ? NSEvent.mouseLocation : NSPoint(x: visible.midX, y: visible.midY)
-        center.x = min(max(center.x, visible.minX + size.width / 2), visible.maxX - size.width / 2)
-        center.y = min(max(center.y, visible.minY + size.height / 2), visible.maxY - size.height / 2)
+        let size = GlassDialView.footprint
+        let visible = OverlayPanel.screenUnderCursor()?.visibleFrame ?? .zero
+        let desired = atCursor ? NSEvent.mouseLocation : NSPoint(x: visible.midX, y: visible.midY)
+        let center = RadialMenuGeometry.clampedCenter(desired, footprint: size, in: visible)
         panel.setFrameOrigin(NSPoint(x: center.x - size.width / 2, y: center.y - size.height / 2))
 
         isVisible = true
@@ -142,29 +89,38 @@ final class RadialMenuController: DialMenu {
     /// Returns true when the highlighted item changed.
     @discardableResult
     func move(by delta: Int) -> Bool {
-        guard isVisible, var selection else { return false }
+        guard isVisible else { return false }
         bumpIdleTimer()
-        let changed = selection.move(by: delta)
-        self.selection = selection
-        if changed {
-            model.continuousSelection = selection.continuousSelection
-            model.selected = selection.selected
-        }
+        let changed = navigation?.move(by: delta) ?? false
+        if changed { refreshModel() }
         return changed
     }
 
+    /// Opens a highlighted group, returns from Back, or chooses a leaf and closes the menu.
     func confirm() {
-        guard isVisible, model.modes.indices.contains(model.selected) else { return }
-        let mode = model.modes[model.selected]
-        dismiss()
-        onSelect?(mode)
+        guard isVisible, let result = navigation?.confirm() else { return }
+        switch result {
+        case .enteredGroup, .returned:
+            refreshModel()
+            bumpIdleTimer()
+        case .selectedLeaf(let item):
+            guard case .leaf(let mode) = item.content else { return }
+            dismiss()
+            onSelect?(mode)
+        }
     }
 
     func dismiss() {
         guard isVisible else { return }
         isVisible = false
+        navigation = nil
         idleTimer?.invalidate()
         panel.fade(in: false)
+    }
+
+    private func refreshModel() {
+        guard let navigation else { return }
+        model.update(from: navigation)
     }
 
     private func bumpIdleTimer() {
@@ -229,39 +185,11 @@ final class HUDController {
     }
 }
 
-/// Always-active blur. SwiftUI materials dim in windows that never become
-/// key, which is every overlay panel here.
-struct VisualEffect: NSViewRepresentable {
-    var material: NSVisualEffectView.Material
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = .behindWindow
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ view: NSVisualEffectView, context: Context) {
-        view.material = material
-    }
-}
-
-// MARK: - Liquid Glass (macOS 26) with a material fallback
+// MARK: - Liquid Glass
 
 extension View {
-    /// Liquid Glass on macOS 26+, a light/dark adaptive blur before that.
-    @ViewBuilder
+    /// Liquid Glass behind the content, so icons and text stay sharp.
     func glassBackground<S: SwiftUI.Shape>(in shape: S) -> some View {
-        if #available(macOS 26.0, *) {
-            self.glassEffect(.regular, in: shape)
-        } else {
-            self
-                .background {
-                    VisualEffect(material: .popover).clipShape(shape)
-                }
-                .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-        }
+        glassEffect(.regular, in: shape)
     }
 }

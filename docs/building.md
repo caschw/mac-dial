@@ -7,11 +7,11 @@ Install full Xcode with a macOS SDK that provides SwiftUI's macOS 26
 cannot build the checked-in application project. **Xcode 27.2 (27B52) has been
 verified**; a minimum supported Xcode version has not been established.
 
-The build SDK requirement is separate from the **macOS 14 runtime deployment
-target**. `Sources/MacDial/UI/Overlays.swift` references `glassEffect` inside a
-`#available(macOS 26.0, *)` check, with an AppKit material fallback on earlier
-systems. That check protects runtime execution; it does not let an older SDK
-compile an API it does not declare.
+The app and MacDialKit share a **macOS 26.0 deployment target**, so Liquid Glass
+APIs such as `glassEffect` are used directly without availability checks or a
+legacy material fallback. Earlier macOS versions are not supported; users on
+macOS 14 or 15 must keep an earlier build. Settings data is unchanged and stays
+compatible.
 
 Check the selected toolchain with:
 
@@ -36,7 +36,7 @@ installation is required.
 Both Debug and Release use marketing version `1.0`, build `1`, bundle identifier
 `local.macdial.MacDial`, and executable `MacDial` inside `Mac Dial.app`.
 `Resources/Info.plist` expands the target build settings. The deployment target
-is macOS 14.0.
+is macOS 26.0 for every target.
 
 ## Command line
 
@@ -124,7 +124,7 @@ otool -L 'build/DerivedData/Build/Products/Release/Mac Dial.app/Contents/MacOS/M
 ```
 
 Check version `1.0`, build `1`, the bundle identifier and executable above,
-`LSUIElement = true`, minimum macOS 14.0, the Bluetooth usage description, and
+`LSUIElement = true`, `LSMinimumSystemVersion` 26.0, the Bluetooth usage description, and
 `AppIcon.icns` in `Contents/Resources`. In Xcode, each source should occur once in
 its owning target's Compile Sources and the asset catalog once in the app's Copy
 Bundle Resources; Info.plist is a build input, not a copied resource.
@@ -133,5 +133,5 @@ links `@rpath/MacDialKit.framework/Versions/A/MacDialKit`.
 
 Successful framework tests and builds do not verify the
 permissions workflow, launch at login, Surface Dial connection, wake, haptics,
-gestures, or macOS 14 runtime compatibility. Use the hardware checklist in
+gestures, or appearance on macOS 26. Use the hardware checklist in
 [contributing](contributing.md) and report what was actually exercised.

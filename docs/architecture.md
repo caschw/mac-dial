@@ -15,7 +15,7 @@ haptic output. CoreBluetooth keeps the paired dial ready for instant wake.
 | `Input` | `DialController` forwards reports to MacDialKit and coordinates settings, actions, and overlays; `MainRunLoopScheduler` supplies Foundation timers and wall-clock time |
 | `Actions` | `Actions.swift` implements native system, keyboard, mouse, volume, brightness, and media operations |
 | `Settings` | `SettingsStore` publishes configuration changes and provides recovery UI; AppKit shortcut helpers and `SettingsView` provide presentation |
-| `UI` | `StatusBarController` handles the menu bar; `Overlays` contains the radial menu and HUD; `DialGlyph` draws icons |
+| `UI` | `StatusBarController` handles the menu bar; `Overlays` contains the radial-menu controller, panels, and HUD; `GlassDialView` renders the glass dial and nested arcs; `DialGlyph` draws icons |
 
 `Sources/MacDialKit` contains the platform-independent behavior:
 
@@ -25,7 +25,7 @@ haptic output. CoreBluetooth keeps the paired dial ready for instant wake.
 | `Settings` | Codable configuration, stable action enums and bindings, mode selection, and protected settings persistence |
 | `Input` | `GestureInterpreter` maps button/rotation input to actions and menu operations; injectable scheduling and side-effect protocols |
 | `Actions` | `RotationInterpreter` selects effects; `RotationEffectQueue` delivers bounded, ordered batches; `AppSwitchCoordinator` sequences app-switch keys and timers |
-| `UI` | Platform-independent radial-menu selection and detent accumulation |
+| `UI` | Radial-menu selection and detent accumulation, nested-menu navigation (`RadialMenuNavigation`), and dial/arc geometry (`RadialMenuGeometry`) |
 
 MacDialKit imports only Foundation. It does not instantiate hardware services,
 system-event generators, or UI controllers. The app links
@@ -54,6 +54,32 @@ main run loop, in its existing default mode, and `Date` for rotation timing.
 Tests substitute a manually advanced clock; they do not sleep or require a dial.
 A zero-delay scheduler may invoke an action before returning its cancellation
 token; completed actions are not retained as pending gestures.
+
+### Radial menu
+
+The long-press action opens the menu through `DialController.showRadialMenu()`,
+which calls `RadialMenuController.show`. After that, `GestureInterpreter` drives
+it only through `DialMenu` (`isVisible`, `move`, `confirm`, `dismiss`).
+`RadialMenuController` owns a
+`RadialMenuNavigation` built from the enabled modes; confirming a group pushes a
+frame whose first slot is **Back**, confirming **Back** pops it, and only a leaf
+selection closes the menu and selects a mode. `GlassDialModel` projects the
+navigation state into SwiftUI: the root dial, plus one outer arc anchored at the
+selected root sector and windowed to seven slots by
+`RadialMenuGeometry.visibleWindow`. The panel is positioned with
+`RadialMenuGeometry.clampedCenter` so the full arc footprint stays on screen.
+The root and active arc share one continuous glass contour, with the arc's
+inner radius equal to the unscaled root radius. Only the glass background is
+attenuated for transparency; icons and labels are separate foreground layers.
+The outer contour, center well, and selected sectors share `GlassSurface`
+styling as separate native glass surfaces, while the selection's accent rim
+stays in the foreground. Root selection animates the sector and rim paths in a
+fixed view rather than rotating the glass host, which can displace the native
+material outside the dial. Reduce Transparency substitutes an opaque
+background for the entire contour and omits the inset glass effects.
+`DialController` dismisses an open menu when the enabled modes or steps per
+revolution change. Production menus are currently a single level; the settings
+schema has no nested-menu representation.
 
 `AppDelegate` creates shared settings, device, status, scheduler, action, wake,
 and overlay collaborators and injects them into `DialController`. The controller
@@ -144,22 +170,26 @@ The framework and tests implement the structural extraction described in
 [MacDialKit and behavior tests (#1)](https://github.com/caschw/mac-dial/issues/1).
 SwiftUI/AppKit presentation and concrete IOKit, CoreBluetooth, and system-action
 implementations remain in the app. This is not a concurrency redesign, a new
-settings schema, or a radial-menu redesign.
+settings schema.
 
-Use [diversifiedfun/mac-dial](https://github.com/diversifiedfun/mac-dial) as a
-future visual and feature reference, especially its dial-menu appearance.
+The glass radial menu with nested arcs
+([#4](https://github.com/caschw/mac-dial/issues/4)) took visual inspiration
+from [diversifiedfun/mac-dial](https://github.com/diversifiedfun/mac-dial) at
+revision `3bb6d4baac2f17a37bdf74845560f458bcdb58cc`. It is an original SwiftUI
+implementation; no code or assets were copied. Continue to use that project as
+a visual and feature reference.
 Evaluate individual ports against the native Apple Silicon input foundation from
 [camerondehart/mac-dial-AppleSilicon](https://github.com/camerondehart/mac-dial-AppleSilicon)
 and the original
 [andreasjhkarlsson/mac-dial](https://github.com/andreasjhkarlsson/mac-dial).
 
 The desired direction is a more modern, primarily SwiftUI interface with native
-IOKit dial support, not replacement of the input stack. A future menu redesign
-should separate presentation from gesture interpretation, preserve configurable
+IOKit dial support, not replacement of the input stack. Menu changes should keep
+presentation separate from gesture interpretation, preserve configurable
 actions and haptic behavior, and consider accessibility, light/dark appearance,
-keyboard interaction, and macOS 14 fallbacks. Feature selection and acceptance
-criteria belong in separate changes; the redesign and feature ports are planned
-work rather than implemented functionality.
+and keyboard interaction on the macOS 26.0 minimum. Other feature ports, and
+configurable nested menus in settings, are planned work rather than implemented
+functionality.
 
 Before copying code or assets, inspect the source revision and license, retain
 required notices, and document provenance. Existing MIT terms and original

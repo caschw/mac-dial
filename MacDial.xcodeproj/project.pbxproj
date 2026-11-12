@@ -27,6 +27,10 @@
 		AA0000000000000000000013 = {isa = PBXBuildFile; fileRef = AB0000000000000000000012; };
 		AA0000000000000000000014 = {isa = PBXBuildFile; fileRef = AB0000000000000000000013; };
 		AA0000000000000000000015 = {isa = PBXBuildFile; fileRef = AB0000000000000000000014; };
+		AA0000000000000000000016 = {isa = PBXBuildFile; fileRef = AB0000000000000000000015; };
+		AA0000000000000000000017 = {isa = PBXBuildFile; fileRef = AB0000000000000000000016; };
+		AA0000000000000000000018 = {isa = PBXBuildFile; fileRef = AB0000000000000000000017; };
+		AA0000000000000000000019 = {isa = PBXBuildFile; fileRef = AB0000000000000000000018; };
 		A20000000000000000000001 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* main.swift */; };
 		A20000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* AppDelegate.swift */; };
 		A20000000000000000000003 /* DialDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* DialDevice.swift */; };
@@ -37,6 +41,7 @@
 		A20000000000000000000008 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* SettingsView.swift */; };
 		A20000000000000000000009 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000009 /* StatusBarController.swift */; };
 		A2000000000000000000000A /* Overlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000A /* Overlays.swift */; };
+		A2000000000000000000000D /* GlassDialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000E /* GlassDialView.swift */; };
 		A2000000000000000000000B /* DialGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000B /* DialGlyph.swift */; };
 		A2000000000000000000000C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000C /* Assets.xcassets */; };
 		A40000000000000000000001 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A30000000000000000000001; };
@@ -70,6 +75,10 @@
 		AB0000000000000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotationEffectQueueTests.swift; sourceTree = "<group>"; };
 		AB0000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Actions/AppSwitchCoordinator.swift; sourceTree = "<group>"; };
 		AB0000000000000000000014 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSwitchCoordinatorTests.swift; sourceTree = "<group>"; };
+		AB0000000000000000000015 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/RadialMenuNavigation.swift; sourceTree = "<group>"; };
+		AB0000000000000000000016 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadialMenuNavigationTests.swift; sourceTree = "<group>"; };
+		AB0000000000000000000017 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/RadialMenuGeometry.swift; sourceTree = "<group>"; };
+		AB0000000000000000000018 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadialMenuGeometryTests.swift; sourceTree = "<group>"; };
 		A10000000000000000000001 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A10000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A10000000000000000000003 /* DialDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialDevice.swift; sourceTree = "<group>"; };
@@ -80,6 +89,7 @@
 		A10000000000000000000008 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A10000000000000000000009 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		A1000000000000000000000A /* Overlays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Overlays.swift; sourceTree = "<group>"; };
+		A1000000000000000000000E /* GlassDialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDialView.swift; sourceTree = "<group>"; };
 		A1000000000000000000000B /* DialGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialGlyph.swift; sourceTree = "<group>"; };
 		A1000000000000000000000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1000000000000000000000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -127,7 +137,7 @@
 		B10000000000000000000005 /* Input */ = {isa = PBXGroup; children = (A10000000000000000000005, AB0000000000000000000008); path = Input; sourceTree = "<group>"; };
 		B10000000000000000000006 /* Actions */ = {isa = PBXGroup; children = (A10000000000000000000006); path = Actions; sourceTree = "<group>"; };
 		B10000000000000000000007 /* Settings */ = {isa = PBXGroup; children = (A10000000000000000000007, A10000000000000000000008); path = Settings; sourceTree = "<group>"; };
-		B10000000000000000000008 /* UI */ = {isa = PBXGroup; children = (A10000000000000000000009, A1000000000000000000000A, A1000000000000000000000B); path = UI; sourceTree = "<group>"; };
+		B10000000000000000000008 /* UI */ = {isa = PBXGroup; children = (A10000000000000000000009, A1000000000000000000000A, A1000000000000000000000B, A1000000000000000000000E); path = UI; sourceTree = "<group>"; };
 		B10000000000000000000009 /* Resources */ = {isa = PBXGroup; children = (A1000000000000000000000C, A1000000000000000000000D); path = Resources; sourceTree = "<group>"; };
 		B1000000000000000000000A /* Frameworks */ = {
 			isa = PBXGroup;
@@ -136,8 +146,8 @@
 			sourceTree = "<group>";
 		};
 		B1000000000000000000000B /* Products */ = {isa = PBXGroup; children = (E10000000000000000000001, AB0000000000000000000003, AB0000000000000000000009); name = Products; sourceTree = "<group>"; };
-		AC0000000000000000000001 = {isa = PBXGroup; children = (AB0000000000000000000001, AB0000000000000000000002, AB000000000000000000000A, AB000000000000000000000C, AB000000000000000000000E, AB0000000000000000000010, AB0000000000000000000012, AB0000000000000000000014); path = Tests/MacDialKitTests; sourceTree = "<group>"; };
-		AC0000000000000000000002 = {isa = PBXGroup; children = (AB0000000000000000000004, AB0000000000000000000005, AB0000000000000000000006, AB0000000000000000000007, AB000000000000000000000B, AB000000000000000000000D, AB000000000000000000000F, AB0000000000000000000011, AB0000000000000000000013); path = Sources/MacDialKit; sourceTree = "<group>"; };
+		AC0000000000000000000001 = {isa = PBXGroup; children = (AB0000000000000000000001, AB0000000000000000000002, AB000000000000000000000A, AB000000000000000000000C, AB000000000000000000000E, AB0000000000000000000010, AB0000000000000000000012, AB0000000000000000000014, AB0000000000000000000016, AB0000000000000000000018); path = Tests/MacDialKitTests; sourceTree = "<group>"; };
+		AC0000000000000000000002 = {isa = PBXGroup; children = (AB0000000000000000000004, AB0000000000000000000005, AB0000000000000000000006, AB0000000000000000000007, AB000000000000000000000B, AB000000000000000000000D, AB000000000000000000000F, AB0000000000000000000011, AB0000000000000000000013, AB0000000000000000000015, AB0000000000000000000017); path = Sources/MacDialKit; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -198,8 +208,8 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		AF0000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000001, AA0000000000000000000002, AA000000000000000000000B, AA000000000000000000000D, AA000000000000000000000F, AA0000000000000000000011, AA0000000000000000000013, AA0000000000000000000015); runOnlyForDeploymentPostprocessing = 0; };
-		AF0000000000000000000002 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000003, AA0000000000000000000004, AA0000000000000000000005, AA0000000000000000000006, AA000000000000000000000C, AA000000000000000000000E, AA0000000000000000000010, AA0000000000000000000012, AA0000000000000000000014); runOnlyForDeploymentPostprocessing = 0; };
+		AF0000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000001, AA0000000000000000000002, AA000000000000000000000B, AA000000000000000000000D, AA000000000000000000000F, AA0000000000000000000011, AA0000000000000000000013, AA0000000000000000000015, AA0000000000000000000017, AA0000000000000000000019); runOnlyForDeploymentPostprocessing = 0; };
+		AF0000000000000000000002 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000003, AA0000000000000000000004, AA0000000000000000000005, AA0000000000000000000006, AA000000000000000000000C, AA000000000000000000000E, AA0000000000000000000010, AA0000000000000000000012, AA0000000000000000000014, AA0000000000000000000016, AA0000000000000000000018); runOnlyForDeploymentPostprocessing = 0; };
 		F10000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -208,7 +218,7 @@
 				A20000000000000000000003, A20000000000000000000004,
 				A20000000000000000000005, A20000000000000000000006,
 				A20000000000000000000007, A20000000000000000000008,
-				A20000000000000000000009, A2000000000000000000000A,
+				A20000000000000000000009, A2000000000000000000000A, A2000000000000000000000D,
 				A2000000000000000000000B,
 				AA0000000000000000000007,
 			);
@@ -243,7 +253,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_TESTABILITY = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
@@ -259,7 +269,7 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";

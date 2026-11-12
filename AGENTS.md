@@ -10,8 +10,10 @@ Preserve native, event-driven IOKit HID input and CoreBluetooth wake support.
 Keep the application primarily SwiftUI; use AppKit where macOS lifecycle,
 menu-bar integration, windows, and system input require it.
 
-[diversifiedfun/mac-dial](https://github.com/diversifiedfun/mac-dial) is a planned
-source of visual and feature inspiration, especially its dial-menu look and feel.
+[diversifiedfun/mac-dial](https://github.com/diversifiedfun/mac-dial) is a source
+of visual and feature inspiration. The glass radial menu and nested arcs were
+inspired by its dial menu; they are an original implementation with no copied
+code or assets.
 Treat UI redesigns and feature ports as separate, reviewed changes with explicit
 requirements, license review, and appropriate attribution. Do not imply that
 planned features already exist.
@@ -23,7 +25,7 @@ planned features already exist.
   decoding, configuration and Foundation-backed persistence, gestures, and
   rotation selection in `MacDialKit`. Preserve the `Device`, `Input`, `Actions`,
   `Settings`, and `UI` responsibility boundaries described in the architecture.
-- Preserve macOS 14 support, native Apple Silicon execution, menu-bar behavior,
+- Preserve the macOS 26.0 minimum, native Apple Silicon execution, menu-bar behavior,
   permissions, and `local.macdial.MacDial` unless a task explicitly changes them.
 - Do not reset settings when changing the app version. Preserve the
   `dialConfig.v2` and `dialPeripheralIdentifier` keys, Codable schema, enum raw
