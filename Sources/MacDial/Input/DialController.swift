@@ -92,7 +92,7 @@ final class DialController {
         radial.show(items: items, selectedID: (outputModeID ?? config.currentMode.id).uuidString,
                     detentsPerItem: max(1, config.stepsPerRevolution / 18), atCursor: config.radialAtCursor,
                     enterGroup: outputModeID != nil,
-                    preferredOutputUID: config.audioOutput.effectiveUID(outputs: audio.outputs, defaultUID: audio.defaultUID))
+                    preferredOutputUID: config.audioOutput.selectedUID)
     }
 
     private func refreshMenu(_ config: DialConfig, outputs: [AudioOutput], error: String?) {
@@ -117,13 +117,20 @@ final class DialController {
         case .information(let message):
             hud.show(icon: "speaker.slash", title: message)
             return false
+        case .systemDefaultAudioOutput:
+            settings.config.audioOutput.selectedUID = nil
+            gestures.resetGesture()
+            if settings.config.showHUD {
+                hud.show(icon: "hifispeaker", title: "Volume output changed to System default")
+            }
+            return true
         case .audioOutput(let uid):
             do {
                 let output = try audio.select(uid, preferences: settings.config.audioOutput)
                 settings.config.audioOutput.selectedUID = output.uid
                 gestures.resetGesture()
                 if settings.config.showHUD {
-                    hud.show(icon: "speaker.wave.2.circle", title: "Volume output changed to \(output.name)")
+                    hud.show(icon: output.connection.symbol, title: "Volume output changed to \(output.name)")
                 }
                 return true
             } catch {

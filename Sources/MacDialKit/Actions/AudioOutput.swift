@@ -1,15 +1,33 @@
 import Foundation
 
+public enum AudioOutputConnection: Equatable {
+    case usb
+    case bluetooth
+    case builtIn
+    case unknown
+
+    public var symbol: String {
+        switch self {
+        case .usb: return "cable.connector"
+        case .bluetooth: return "antenna.radiowaves.left.and.right"
+        case .builtIn: return "macbook.gen2"
+        case .unknown: return "speaker.wave.2.fill"
+        }
+    }
+}
+
 public struct AudioOutput: Equatable, Identifiable {
     public let uid: String
     public let name: String
     public let supportsVolume: Bool
+    public let connection: AudioOutputConnection
     public var id: String { uid }
 
-    public init(uid: String, name: String, supportsVolume: Bool) {
+    public init(uid: String, name: String, supportsVolume: Bool, connection: AudioOutputConnection = .unknown) {
         self.uid = uid
         self.name = name
         self.supportsVolume = supportsVolume
+        self.connection = connection
     }
 }
 
@@ -106,6 +124,7 @@ public enum AudioVolume {
 
 public enum DialMenuChoice {
     case mode(DialMode)
+    case systemDefaultAudioOutput
     case audioOutput(String)
     case information(String)
 }
@@ -117,14 +136,17 @@ public enum AudioOutputMenu {
             guard mode.kind == .volumeOutput else {
                 return .leaf(id: mode.id.uuidString, title: mode.name, symbol: mode.icon, payload: .mode(mode))
             }
-            var children: [RadialMenuItem<DialMenuChoice>] = preferences.eligibleOutputs(outputs).map {
+            var children: [RadialMenuItem<DialMenuChoice>] = [
+                .leaf(id: "\(mode.id.uuidString).system-default", title: "System default",
+                      symbol: "hifispeaker", payload: .systemDefaultAudioOutput)
+            ]
+            children += preferences.eligibleOutputs(outputs).map {
                 .leaf(id: "\(mode.id.uuidString).output.\($0.uid)", title: $0.name,
-                      symbol: "speaker.wave.2.fill", payload: .audioOutput($0.uid))
+                      symbol: $0.connection.symbol, payload: .audioOutput($0.uid))
             }
-            if children.isEmpty {
-                let message = error ?? "No available volume outputs"
-                children = [.leaf(id: "\(mode.id.uuidString).empty", title: message,
-                                  symbol: "speaker.slash", payload: .information(message))]
+            if let error {
+                children.append(.leaf(id: "\(mode.id.uuidString).error", title: error,
+                                      symbol: "exclamationmark.triangle", payload: .information(error)))
             }
             return .group(id: mode.id.uuidString, title: mode.name, symbol: mode.icon, children: children)
         }
@@ -145,6 +167,8 @@ public protocol AudioHardware {
     func isAlive(_ device: AudioDeviceHandle) throws -> Bool
     func uid(of device: AudioDeviceHandle) throws -> String
     func name(of device: AudioDeviceHandle) throws -> String
+    /// Unknown is valid when the transport property is absent or unrecognized.
+    func connection(of device: AudioDeviceHandle) throws -> AudioOutputConnection
     /// Per-stream output channel counts.
     func outputStreamChannelCounts(_ device: AudioDeviceHandle) throws -> [UInt32]
     func isVolumeWritable(_ device: AudioDeviceHandle, element: UInt32) throws -> Bool
@@ -195,8 +219,16 @@ public struct AudioOutputCore {
                 guard seen.insert(uid).inserted else {
                     throw AudioOutputError("Core Audio reported duplicate output identities.")
                 }
-                outputs.append(AudioOutput(uid: uid, name: try nonempty(hardware.name(of: device)),
-                                           supportsVolume: !(try volumeElements(device)).isEmpty))
+                let name = try nonempty(hardware.name(of: device))
+                let supportsVolume = !(try volumeElements(device)).isEmpty
+                var connection = AudioOutputConnection.unknown
+                do {
+                    connection = try hardware.connection(of: device)
+                } catch {
+                    failures.append("Cannot inspect audio device \(device) connection: \(error.localizedDescription)")
+                }
+                outputs.append(AudioOutput(uid: uid, name: name, supportsVolume: supportsVolume,
+                                           connection: connection))
             } catch {
                 failures.append("Cannot inspect audio device \(device): \(error.localizedDescription)")
             }

@@ -112,6 +112,18 @@ final class AudioOutputService: ObservableObject, AudioHardware {
         try string(device, selector: kAudioObjectPropertyName)
     }
 
+    func connection(of device: AudioDeviceHandle) throws -> AudioOutputConnection {
+        var property = address(kAudioDevicePropertyTransportType)
+        guard AudioObjectHasProperty(device, &property) else { return .unknown }
+        let transport = try scalar(device, selector: kAudioDevicePropertyTransportType, initial: UInt32(0))
+        switch transport {
+        case kAudioDeviceTransportTypeUSB: return .usb
+        case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: return .bluetooth
+        case kAudioDeviceTransportTypeBuiltIn: return .builtIn
+        default: return .unknown
+        }
+    }
+
     func outputStreamChannelCounts(_ device: AudioDeviceHandle) throws -> [UInt32] {
         let streams: [AudioStreamID] = try array(device, selector: kAudioDevicePropertyStreams,
                                                 scope: kAudioDevicePropertyScopeOutput)
@@ -211,7 +223,7 @@ final class AudioOutputService: ObservableObject, AudioHardware {
         addListener(AudioObjectID(kAudioObjectSystemObject), selector: kAudioHardwarePropertyDefaultOutputDevice)
         for id in ids {
             for selector in [kAudioDevicePropertyDeviceIsAlive, kAudioObjectPropertyOwnedObjects,
-                             kAudioObjectPropertyName] {
+                             kAudioObjectPropertyName, kAudioDevicePropertyTransportType] {
                 addListener(id, selector: selector)
             }
             addListener(id, selector: kAudioDevicePropertyStreams, scope: kAudioDevicePropertyScopeOutput)

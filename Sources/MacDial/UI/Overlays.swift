@@ -134,9 +134,10 @@ final class RadialMenuController: DialMenu {
     }
 
     private func selectPreferredOutput() {
-        guard let preferredOutputUID, let navigation,
+        guard let navigation,
               let item = navigation.current.slots.compactMap(\.item).first(where: {
                   if case .leaf(.audioOutput(let uid)) = $0.content { return uid == preferredOutputUID }
+                  if case .leaf(.systemDefaultAudioOutput) = $0.content { return preferredOutputUID == nil }
                   return false
               }) else { return }
         self.navigation?.selectItem(id: item.id)

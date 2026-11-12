@@ -70,8 +70,14 @@ The menu supports nested items: clicking an item marked with a chevron opens an
 outer glass arc attached directly to the circle with that item's options. The
 arc starts with a **Back** item; clicking it returns to the previous level. Long submenus show up
 to seven options at once, with dots at either end when more are available.
-**Volume Output** opens a secondary arc containing available outputs that
-support software volume control. Device discovery stays live while the app and
+**Volume Output** opens a secondary arc containing **System default** and available
+outputs that support software volume control. **System default** is always available,
+even when every device is hidden or discovery fails. Selecting it clears the
+remembered device and follows macOS's current output, including later changes.
+USB devices use `cable.connector`, Bluetooth devices use
+`antenna.radiowaves.left.and.right`, built-in devices use `macbook.gen2`, and
+System default uses `hifispeaker`. Other or unknown connections retain the speaker
+icon. Device discovery stays live while the app and
 menu are open. An output selection closes the menu, shows
 **Volume output changed to [device name]** (when on-screen labels are enabled),
 and silently returns to your previous operating mode. Back, timeout, and

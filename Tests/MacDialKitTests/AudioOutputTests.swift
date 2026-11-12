@@ -148,14 +148,17 @@ final class AudioOutputTests: XCTestCase {
         XCTAssertEqual(candidate.currentModeID, config.enabledModes.first?.id)
     }
 
-    func testEmptyArcAndConfirmationHaveTypedPayloads() throws {
+    func testSystemDefaultAndDeviceConfirmationHaveDistinctTypedPayloads() throws {
         let mode = DialMode.volumeOutput
         var navigation = try RadialMenuNavigation(
             items: AudioOutputMenu.items(modes: [mode], outputs: [hdmi], preferences: AudioOutputPreferences()),
             selectedID: nil, detentsPerItem: 1)
         _ = navigation.confirm()
         if case .selectedLeaf(let item) = navigation.confirm(),
-           case .leaf(.information) = item.content {} else { XCTFail("Empty arc should be informational") }
+           case .leaf(.systemDefaultAudioOutput) = item.content {
+            XCTAssertEqual(item.title, "System default")
+            XCTAssertEqual(item.symbol, "hifispeaker")
+        } else { XCTFail("System default must be selectable even without controllable devices") }
         try navigation.replaceItems(AudioOutputMenu.items(modes: [mode], outputs: [speakers],
                                                          preferences: AudioOutputPreferences()))
         XCTAssertTrue(navigation.selectItem(id: "\(mode.id.uuidString).output.\(speakers.uid)"))
@@ -167,6 +170,79 @@ final class AudioOutputTests: XCTestCase {
         let before = navigation.current.selectedSlot.item?.id
         XCTAssertThrowsError(try navigation.replaceItems([]))
         XCTAssertEqual(navigation.current.selectedSlot.item?.id, before)
+    }
+
+    func testSystemDefaultSurvivesHiddenOutputsDiscoveryErrorsAndLiveRefresh() throws {
+        let mode = DialMode.volumeOutput
+        var preferences = selecting(speakers.uid)
+        preferences.disable(speakers)
+        preferences.disable(headphones)
+        var navigation = try RadialMenuNavigation(
+            items: AudioOutputMenu.items(modes: [mode], outputs: [speakers, headphones],
+                                         preferences: preferences, error: "Discovery failed"),
+            selectedID: mode.id.uuidString, detentsPerItem: 1)
+        _ = navigation.confirm()
+        let id = "\(mode.id.uuidString).system-default"
+        XCTAssertTrue(navigation.selectItem(id: id))
+        XCTAssertEqual(navigation.current.slots.compactMap(\.item).map(\.title),
+                       ["System default", "Discovery failed"])
+        try navigation.replaceItems(AudioOutputMenu.items(modes: [mode], outputs: [],
+                                                         preferences: preferences))
+        XCTAssertEqual(navigation.current.selectedSlot.item?.id, id)
+        if case .selectedLeaf(let item) = navigation.confirm(),
+           case .leaf(.systemDefaultAudioOutput) = item.content {} else {
+            XCTFail("Discovery failure and hidden devices must not remove System default")
+        }
+        preferences.selectedUID = nil
+        preferences = try JSONDecoder().decode(AudioOutputPreferences.self, from: JSONEncoder().encode(preferences))
+        XCTAssertNil(preferences.selectedUID)
+        XCTAssertEqual(preferences.disabled.count, 2)
+        let hardware = FakeAudioHardware()
+        hardware.listFails = true
+        XCTAssertFalse(try core(hardware).adjustVolume(preferences: preferences, increasing: true, repeatCount: 1))
+        XCTAssertTrue(hardware.writes.isEmpty)
+    }
+
+    func testDiscoveredConnectionsDriveArcIconsAndRefreshWithoutChangingIdentity() throws {
+        let hardware = FakeAudioHardware()
+        let connections: [AudioOutputConnection] = [.usb, .bluetooth, .builtIn, .unknown]
+        for (index, connection) in connections.enumerated() {
+            let handle = UInt32(index + 1)
+            hardware.add(handle, uid: "device-\(handle)", name: "Device \(handle)", channels: [2], main: 0.5)
+            hardware.devices[handle]?.connection = connection
+        }
+        let mode = DialMode.volumeOutput
+        let snapshot = try core(hardware).discover()
+        XCTAssertEqual(snapshot.outputs.map(\.connection), connections)
+        var navigation = try RadialMenuNavigation(
+            items: AudioOutputMenu.items(modes: [mode], outputs: snapshot.outputs,
+                                         preferences: AudioOutputPreferences()),
+            selectedID: mode.id.uuidString, detentsPerItem: 1)
+        _ = navigation.confirm()
+        XCTAssertEqual(navigation.current.slots.compactMap(\.item).map(\.symbol),
+                       ["hifispeaker", "cable.connector", "antenna.radiowaves.left.and.right",
+                        "macbook.gen2", "speaker.wave.2.fill"])
+        let id = "\(mode.id.uuidString).output.device-1"
+        XCTAssertTrue(navigation.selectItem(id: id))
+        hardware.devices[1]?.connection = .bluetooth
+        try navigation.replaceItems(AudioOutputMenu.items(modes: [mode], outputs: core(hardware).discover().outputs,
+                                                         preferences: AudioOutputPreferences()))
+        XCTAssertEqual(navigation.current.selectedSlot.item?.id, id)
+        XCTAssertEqual(navigation.current.selectedSlot.item?.symbol, "antenna.radiowaves.left.and.right")
+    }
+
+    func testConnectionReadFailureKeepsOutputUsableAndReportsFailure() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "usb", name: "USB", channels: [2], main: 0.5)
+        hardware.devices[1]?.connection = .usb
+        hardware.failingConnection.insert(1)
+        let snapshot = try core(hardware).discover()
+        XCTAssertEqual(snapshot.outputs, [AudioOutput(uid: "usb", name: "USB", supportsVolume: true)])
+        XCTAssertEqual(snapshot.failures.count, 1)
+        XCTAssertTrue(snapshot.discoveryError?.contains("connection") == true)
+        XCTAssertEqual(try core(hardware).validateSelection("usb", preferences: AudioOutputPreferences(),
+                                                          snapshot: snapshot), snapshot.outputs[0])
+        XCTAssertTrue(hardware.writes.isEmpty)
     }
 
     // MARK: AudioOutputCore
@@ -312,6 +388,7 @@ private final class FakeAudioHardware: AudioHardware {
         var main: Float?
         /// Index 0 is channel 1; nil means the channel is not writable.
         var channels: [Float?]
+        var connection = AudioOutputConnection.unknown
     }
     struct FakeError: Error {}
 
@@ -319,6 +396,7 @@ private final class FakeAudioHardware: AudioHardware {
     var order: [AudioDeviceHandle] = []
     var defaultHandle: AudioDeviceHandle?
     var failingUID = Set<AudioDeviceHandle>()
+    var failingConnection = Set<AudioDeviceHandle>()
     var uidAliases: [String: AudioDeviceHandle] = [:]
     var listFails = false
     var failingWriteElement: UInt32?
@@ -352,6 +430,10 @@ private final class FakeAudioHardware: AudioHardware {
         return try device(handle).uid
     }
     func name(of handle: AudioDeviceHandle) throws -> String { try device(handle).name }
+    func connection(of handle: AudioDeviceHandle) throws -> AudioOutputConnection {
+        if failingConnection.contains(handle) { throw FakeError() }
+        return try device(handle).connection
+    }
     func outputStreamChannelCounts(_ handle: AudioDeviceHandle) throws -> [UInt32] { try device(handle).streams }
     func isVolumeWritable(_ handle: AudioDeviceHandle, element: UInt32) throws -> Bool {
         let device = try device(handle)

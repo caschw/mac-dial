@@ -430,13 +430,16 @@ struct AudioOutputSettings: View {
             }
         }
         Section("Available Outputs") {
+            Label("System default", systemImage: "hifispeaker")
+            Text("Always available on the dial; follows the macOS sound output.")
+                .font(.callout).foregroundStyle(.secondary)
             if audio.outputs.isEmpty {
                 Text("No sound outputs are currently available.").foregroundStyle(.secondary)
             }
             ForEach(audio.outputs) { output in
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(output.name)
+                        Label(output.name, systemImage: output.connection.symbol)
                         if !output.supportsVolume {
                             Text("Software volume control unavailable; not shown on the dial.")
                                 .font(.callout).foregroundStyle(.secondary)

@@ -91,6 +91,13 @@ discards partial detents, and selects Back when an arc choice disappears.
 coalesces discovery refreshes. It observes device/default-output changes,
 device ownership/name/liveness/streams, and output-stream virtual formats.
 Stable Core Audio UIDs identify choices; names are display labels only.
+The permanent System default leaf uses a distinct typed payload, not a synthetic
+device UID; selection clears `selectedUID` and uses the existing system-volume
+key path. The arc highlights this leaf when following macOS rather than the
+current default device. Live transport metadata maps USB, Bluetooth (including
+LE), and built-in devices to connection-specific symbols. Missing or unknown
+transport types retain the speaker symbol; failed transport reads are reported
+without excluding otherwise usable devices. This metadata is not persisted.
 Settings retains disabled UID/name records even when disconnected, while new
 supported devices are eligible unless disabled. The selected UID is independent
 of menu hiding. Missing targets temporarily use the existing system-volume key
