@@ -356,7 +356,7 @@ private struct CenterWell: View {
 
     var body: some View {
         Circle()
-            .fill(Color(nsColor: .windowBackgroundColor).opacity(contrast == .increased ? 0.4 : 0.18))
+            .fill(Color(nsColor: .windowBackgroundColor).opacity(contrast == .increased ? 0.85 : 0.55))
             .overlay(Circle().stroke(Color.primary.opacity(contrast == .increased ? 0.55 : 0.14), lineWidth: 0.5))
             .frame(width: GlassDialView.centerRadius * 2, height: GlassDialView.centerRadius * 2)
     }
@@ -412,8 +412,8 @@ private struct DialGlass<S: SwiftUI.Shape>: View {
             } else {
                 // Attenuate only the material, not the labels or icons above it.
                 Color.clear
-                    .glassEffect(.clear, in: shape)
-                    .opacity(contrast == .increased ? 0.95 : 0.65)
+                    .glassEffect(.clear.tint(Color.accentColor.opacity(0.05)).interactive(), in: shape)
+                    .opacity(contrast == .increased ? 1.0 : 0.85)
             }
             shape.stroke(Color.primary.opacity(contrast == .increased ? 0.6 : 0.14),
                          lineWidth: contrast == .increased ? 1 : 0.5)
