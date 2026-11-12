@@ -413,7 +413,7 @@ private struct DialGlass<S: SwiftUI.Shape>: View {
                 // Attenuate only the material, not the labels or icons above it.
                 Color.clear
                     .glassEffect(.clear, in: shape)
-                    .opacity(contrast == .increased ? 0.65 : 0.35)
+                    .opacity(contrast == .increased ? 0.95 : 0.65)
             }
             shape.stroke(Color.primary.opacity(contrast == .increased ? 0.6 : 0.14),
                          lineWidth: contrast == .increased ? 1 : 0.5)
