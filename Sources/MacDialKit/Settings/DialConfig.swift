@@ -13,6 +13,29 @@ public struct KeyShortcut: Codable, Equatable, Hashable {
         self.modifiers = modifiers
         self.keyName = keyName
     }
+
+    private enum CodingKeys: String, CodingKey { case keyCode, modifiers, keyName }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func number<T: Decodable>(_ type: T.Type, forKey key: CodingKeys) throws -> T {
+            do {
+                return try container.decode(type, forKey: key)
+            } catch let error as DecodingError {
+                guard case .dataCorrupted(let context) = error, context.codingPath.isEmpty else { throw error }
+                throw DecodingError.dataCorrupted(.init(codingPath: container.codingPath + [key],
+                                                        debugDescription: "The value cannot be represented as \(type).",
+                                                        underlyingError: context.underlyingError))
+            } catch {
+                throw DecodingError.dataCorrupted(.init(codingPath: container.codingPath + [key],
+                                                        debugDescription: "The value cannot be represented as \(type).",
+                                                        underlyingError: error))
+            }
+        }
+        keyCode = try number(UInt16.self, forKey: .keyCode)
+        modifiers = try number(UInt.self, forKey: .modifiers)
+        keyName = try container.decode(String.self, forKey: .keyName)
+    }
 }
 
 // MARK: - Actions
@@ -122,6 +145,9 @@ public enum ClickAction: String, Codable, CaseIterable, Identifiable {
 }
 
 public struct RotationBinding: Codable, Equatable {
+    /// Step-size range offered by the volume and brightness editor.
+    public static let auxiliarySpeedRange = 1.0...4.0
+
     public var action: RotationAction = .none
     public var stepsPerAction: Int = 1
     public var reversed: Bool = false
@@ -222,6 +248,8 @@ public struct DialMode: Codable, Equatable, Identifiable {
 public struct DialConfig: Codable, Equatable {
     /// Above ~120 the dial's haptic motor can't tick any finer.
     public static let ticksPerTurnRange = 4...120
+    public static let defaultDoubleClickInterval = 0.3
+    public static let defaultLongPressDuration = 0.5
 
     public var modes: [DialMode] = DialMode.defaults
     public var currentModeID: UUID?
@@ -231,8 +259,8 @@ public struct DialConfig: Codable, Equatable {
     public var showHUD = true
     public var radialAtCursor = true
     public var menuBarGlyph: MenuBarGlyph = .twoTone
-    public var doubleClickInterval: Double = 0.3
-    public var longPressDuration: Double = 0.5
+    public var doubleClickInterval: Double = defaultDoubleClickInterval
+    public var longPressDuration: Double = defaultLongPressDuration
     /// Reconnect to the dial as soon as it wakes from sleep (see BluetoothWaker).
     public var fastWake = true
 

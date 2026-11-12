@@ -111,15 +111,19 @@ final class RadialMenuController: DialMenu {
         panel.contentView = NSHostingView(rootView: RadialMenuView(model: model))
         return panel
     }()
-    private var detentsPerItem = 2
-    private var accumulator = 0
+    private var selection: RadialMenuSelection?
     private var idleTimer: Timer?
 
     func show(modes: [DialMode], selectedID: UUID, detentsPerItem: Int, atCursor: Bool) {
-        self.detentsPerItem = detentsPerItem
-        accumulator = 0
+        let selected = modes.firstIndex(where: { $0.id == selectedID }) ?? 0
+        guard let selection = RadialMenuSelection(itemCount: modes.count, selected: selected,
+                                                  detentsPerItem: detentsPerItem) else {
+            NSLog("MacDial: ignoring invalid radial menu configuration")
+            return
+        }
+        self.selection = selection
         model.modes = modes
-        model.selected = modes.firstIndex(where: { $0.id == selectedID }) ?? 0
+        model.selected = selected
         model.continuousSelection = model.selected
 
         let size = panel.frame.size
@@ -138,17 +142,13 @@ final class RadialMenuController: DialMenu {
     /// Returns true when the highlighted item changed.
     @discardableResult
     func move(by delta: Int) -> Bool {
-        guard isVisible, !model.modes.isEmpty else { return false }
+        guard isVisible, var selection else { return false }
         bumpIdleTimer()
-        accumulator += delta
-        var changed = false
-        while abs(accumulator) >= detentsPerItem {
-            let step = accumulator > 0 ? 1 : -1
-            accumulator -= step * detentsPerItem
-            model.continuousSelection += step
-            let count = model.modes.count
-            model.selected = ((model.continuousSelection % count) + count) % count
-            changed = true
+        let changed = selection.move(by: delta)
+        self.selection = selection
+        if changed {
+            model.continuousSelection = selection.continuousSelection
+            model.selected = selection.selected
         }
         return changed
     }

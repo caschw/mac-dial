@@ -36,6 +36,10 @@ public final class GestureInterpreter {
     // MARK: - Gestures
 
     public func buttonDown() {
+        guard !pressed, passthroughButton == nil else {
+            NSLog("MacDial: ignoring a duplicate dial button press")
+            return
+        }
         rotatedWhilePressed = false
         swallowRelease = false
 
@@ -100,15 +104,23 @@ public final class GestureInterpreter {
             clickTimer = nil
             actions.perform(mode.doubleClick)
         } else {
-            clickTimer = scheduler.schedule(after: config.doubleClickInterval) { [weak self] in
+            let interval = validatedInterval(config.doubleClickInterval, fallback: DialConfig.defaultDoubleClickInterval)
+            var fired = false
+            let timer = scheduler.schedule(after: interval) { [weak self] in
+                fired = true
                 guard let self else { return }
                 self.clickTimer = nil
                 self.actions.perform(self.config.currentMode.click)
             }
+            if !fired {
+                clickTimer = timer
+            }
         }
     }
 
+    /// Processes a signed detent count, including aggregate counts.
     public func rotate(_ delta: Int) {
+        guard delta != 0 else { return }
         if pressed || passthroughButton != nil {
             rotatedWhilePressed = true
             cancelLongPress()
@@ -129,17 +141,31 @@ public final class GestureInterpreter {
 
     private func startLongPress(_ action: @escaping () -> Void) {
         cancelLongPress()
-        longPressTimer = scheduler.schedule(after: config.longPressDuration) { [weak self] in
+        let interval = validatedInterval(config.longPressDuration, fallback: DialConfig.defaultLongPressDuration)
+        var fired = false
+        let timer = scheduler.schedule(after: interval) { [weak self] in
+            fired = true
             guard let self, self.pressed, !self.rotatedWhilePressed else { return }
             self.longPressTimer = nil
             self.swallowRelease = true
             action()
+        }
+        if !fired {
+            longPressTimer = timer
         }
     }
 
     private func cancelLongPress() {
         longPressTimer?.cancel()
         longPressTimer = nil
+    }
+
+    private func validatedInterval(_ interval: TimeInterval, fallback: TimeInterval) -> TimeInterval {
+        guard interval.isFinite, interval >= 0 else {
+            NSLog("MacDial: using the default gesture interval for an invalid value")
+            return fallback
+        }
+        return interval
     }
 
     /// Cancels pending actions when changing modes; an active mouse drag still receives its release.

@@ -63,7 +63,42 @@ struct SettingsView: View {
                 GeneralSettings(store: store, status: status, setLaunchAtLogin: setLaunchAtLogin)
             }
         }
+        .safeAreaInset(edge: .top) {
+            if let recovery = store.recovery {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Saved settings need attention").font(.headline)
+                        Text(recovery.reason)
+                        Text("Edits are temporary until you replace the saved settings.")
+                        HStack {
+                            Button("Export Original…") { store.exportOriginalSettings() }
+                                .disabled(recovery.originalData == nil)
+                            Button("Replace Saved Settings…") { confirmSettingsReplacement() }
+                        }
+                    }
+                    Spacer()
+                }
+                .padding()
+                .background(.regularMaterial)
+            }
+        }
         .frame(minWidth: 780, minHeight: 560)
+    }
+
+    private func confirmSettingsReplacement() {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Replace the original saved settings?"
+        alert.informativeText = "This permanently replaces the original with the settings currently shown. Export the original first if you may need it."
+        alert.addButton(withTitle: "Replace")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        do {
+            try store.replaceSavedSettings()
+        } catch {
+            NSAlert(error: error).runModal()
+        }
     }
 
     private var canDelete: Bool {
@@ -388,8 +423,8 @@ struct RotationEditor: View {
         if binding.action != .none {
             if binding.action.isContinuous {
                 if binding.action == .volume || binding.action == .brightness {
-                    Stepper(value: $binding.speed, in: 1...4, step: 1) {
-                        LabeledContent("Step size", value: "\(Int(binding.speed))/4 per tick")
+                    Stepper(value: $binding.speed, in: RotationBinding.auxiliarySpeedRange, step: 1) {
+                        LabeledContent("Step size", value: stepSizeDescription)
                     }
                 } else {
                     LabeledContent("Speed") {
@@ -414,6 +449,14 @@ struct RotationEditor: View {
                     .font(.callout).foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var stepSizeDescription: String {
+        guard binding.speed.isFinite, binding.speed >= 0,
+              let steps = Int(exactly: binding.speed.rounded(.towardZero)) else {
+            return "Invalid step size"
+        }
+        return "\(steps)/4 per tick"
     }
 }
 

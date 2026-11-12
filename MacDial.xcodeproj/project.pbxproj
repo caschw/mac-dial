@@ -17,6 +17,16 @@
 		AA0000000000000000000009 = {isa = PBXBuildFile; fileRef = AB0000000000000000000009; };
 		AA000000000000000000000A = {isa = PBXBuildFile; fileRef = AB0000000000000000000009; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy); }; };
 		AA000000000000000000000B = {isa = PBXBuildFile; fileRef = AB000000000000000000000A; };
+		AA000000000000000000000C = {isa = PBXBuildFile; fileRef = AB000000000000000000000B; };
+		AA000000000000000000000D = {isa = PBXBuildFile; fileRef = AB000000000000000000000C; };
+		AA000000000000000000000E = {isa = PBXBuildFile; fileRef = AB000000000000000000000D; };
+		AA000000000000000000000F = {isa = PBXBuildFile; fileRef = AB000000000000000000000E; };
+		AA0000000000000000000010 = {isa = PBXBuildFile; fileRef = AB000000000000000000000F; };
+		AA0000000000000000000011 = {isa = PBXBuildFile; fileRef = AB0000000000000000000010; };
+		AA0000000000000000000012 = {isa = PBXBuildFile; fileRef = AB0000000000000000000011; };
+		AA0000000000000000000013 = {isa = PBXBuildFile; fileRef = AB0000000000000000000012; };
+		AA0000000000000000000014 = {isa = PBXBuildFile; fileRef = AB0000000000000000000013; };
+		AA0000000000000000000015 = {isa = PBXBuildFile; fileRef = AB0000000000000000000014; };
 		A20000000000000000000001 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* main.swift */; };
 		A20000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* AppDelegate.swift */; };
 		A20000000000000000000003 /* DialDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* DialDevice.swift */; };
@@ -50,6 +60,16 @@
 		AB0000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainRunLoopScheduler.swift; sourceTree = "<group>"; };
 		AB0000000000000000000009 = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = MacDialKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB000000000000000000000A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotationTests.swift; sourceTree = "<group>"; };
+		AB000000000000000000000B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Device/DialInputReport.swift; sourceTree = "<group>"; };
+		AB000000000000000000000C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialInputReportTests.swift; sourceTree = "<group>"; };
+		AB000000000000000000000D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/RadialMenuSelection.swift; sourceTree = "<group>"; };
+		AB000000000000000000000E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadialMenuSelectionTests.swift; sourceTree = "<group>"; };
+		AB000000000000000000000F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings/DialConfigStorage.swift; sourceTree = "<group>"; };
+		AB0000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialConfigStorageTests.swift; sourceTree = "<group>"; };
+		AB0000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Actions/RotationEffectQueue.swift; sourceTree = "<group>"; };
+		AB0000000000000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotationEffectQueueTests.swift; sourceTree = "<group>"; };
+		AB0000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Actions/AppSwitchCoordinator.swift; sourceTree = "<group>"; };
+		AB0000000000000000000014 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSwitchCoordinatorTests.swift; sourceTree = "<group>"; };
 		A10000000000000000000001 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A10000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A10000000000000000000003 /* DialDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialDevice.swift; sourceTree = "<group>"; };
@@ -116,8 +136,8 @@
 			sourceTree = "<group>";
 		};
 		B1000000000000000000000B /* Products */ = {isa = PBXGroup; children = (E10000000000000000000001, AB0000000000000000000003, AB0000000000000000000009); name = Products; sourceTree = "<group>"; };
-		AC0000000000000000000001 = {isa = PBXGroup; children = (AB0000000000000000000001, AB0000000000000000000002, AB000000000000000000000A); path = Tests/MacDialKitTests; sourceTree = "<group>"; };
-		AC0000000000000000000002 = {isa = PBXGroup; children = (AB0000000000000000000004, AB0000000000000000000005, AB0000000000000000000006, AB0000000000000000000007); path = Sources/MacDialKit; sourceTree = "<group>"; };
+		AC0000000000000000000001 = {isa = PBXGroup; children = (AB0000000000000000000001, AB0000000000000000000002, AB000000000000000000000A, AB000000000000000000000C, AB000000000000000000000E, AB0000000000000000000010, AB0000000000000000000012, AB0000000000000000000014); path = Tests/MacDialKitTests; sourceTree = "<group>"; };
+		AC0000000000000000000002 = {isa = PBXGroup; children = (AB0000000000000000000004, AB0000000000000000000005, AB0000000000000000000006, AB0000000000000000000007, AB000000000000000000000B, AB000000000000000000000D, AB000000000000000000000F, AB0000000000000000000011, AB0000000000000000000013); path = Sources/MacDialKit; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -178,8 +198,8 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		AF0000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000001, AA0000000000000000000002, AA000000000000000000000B); runOnlyForDeploymentPostprocessing = 0; };
-		AF0000000000000000000002 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000003, AA0000000000000000000004, AA0000000000000000000005, AA0000000000000000000006); runOnlyForDeploymentPostprocessing = 0; };
+		AF0000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000001, AA0000000000000000000002, AA000000000000000000000B, AA000000000000000000000D, AA000000000000000000000F, AA0000000000000000000011, AA0000000000000000000013, AA0000000000000000000015); runOnlyForDeploymentPostprocessing = 0; };
+		AF0000000000000000000002 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000003, AA0000000000000000000004, AA0000000000000000000005, AA0000000000000000000006, AA000000000000000000000C, AA000000000000000000000E, AA0000000000000000000010, AA0000000000000000000012, AA0000000000000000000014); runOnlyForDeploymentPostprocessing = 0; };
 		F10000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;

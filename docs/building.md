@@ -105,7 +105,12 @@ tests: the app is built, but is not launched as a test host, so tests neither
 open hardware services nor require Accessibility, Bluetooth, or Input Monitoring
 permission. A controllable test scheduler advances gesture timers synchronously.
 Coverage for the app's native integrations and UI is not implied by framework
-coverage. There is no SwiftPM or alternate shell build.
+coverage: the native HID callback, system-event generation, Bluetooth, and
+SwiftUI/AppKit settings and menus are not executed. The pure HID report decoder
+is covered independently. Include invalid inputs,
+boundaries, stateful interactions, and saved-configuration compatibility in
+focused tests; see [function input requirements](contributing.md#function-inputs-and-unit-tests).
+There is no SwiftPM or alternate shell build.
 
 ## Verification
 

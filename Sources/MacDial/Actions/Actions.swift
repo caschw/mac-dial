@@ -131,8 +131,19 @@ final class ActionEngine: DialActions {
 
     private let rotation = RotationInterpreter()
     private let scheduler: GestureScheduler
-    private var appSwitchReleaseTimer: Timer?
-    private var appSwitcherActive = false
+    private lazy var rotationOutput = RotationEffectQueue(
+        scheduleNext: { work in DispatchQueue.main.async(execute: work) },
+        perform: { [weak self] binding, effect in self?.performRotation(effect, binding: binding) })
+    private lazy var appSwitch = AppSwitchCoordinator(
+        output: rotationOutput, scheduler: scheduler,
+        postCommand: { down in
+            InputSynth.postKeyState(InputSynth.Key.command, down: down, flags: down ? .maskCommand : [])
+        },
+        postTab: { forward in
+            let flags: CGEventFlags = forward ? .maskCommand : [.maskCommand, .maskShift]
+            InputSynth.postKeyState(InputSynth.Key.tab, down: true, flags: flags)
+            InputSynth.postKeyState(InputSynth.Key.tab, down: false, flags: flags)
+        })
 
     init(scheduler: GestureScheduler) {
         self.scheduler = scheduler
@@ -141,18 +152,26 @@ final class ActionEngine: DialActions {
     // MARK: Rotation
 
     func rotate(_ binding: RotationBinding, delta: Int) {
-        for effect in rotation.rotate(binding, delta: delta, at: scheduler.now) {
-            switch effect {
-            case let .scroll(vertical, horizontal):
-                InputSynth.scroll(vertical: vertical, horizontal: horizontal)
-            case let .auxiliary(action, increasing, repeatCount):
-                let key: InputSynth.AuxKey = action == .volume
-                    ? (increasing ? .soundUp : .soundDown)
-                    : (increasing ? .brightnessUp : .brightnessDown)
-                InputSynth.postAuxKey(key, modifiers: [.shift, .option], repeatCount: repeatCount)
-            case let .discrete(forward):
-                discrete(binding, forward: forward)
+        rotation.rotate(binding, delta: delta, at: scheduler.now) { effects in
+            if binding.action == .switchApps {
+                guard let appSwitch else { return false }
+                return appSwitch.enqueue(effects, for: binding)
             }
+            return rotationOutput.enqueue(effects, for: binding)
+        }
+    }
+
+    private func performRotation(_ effect: RotationEffect, binding: RotationBinding) {
+        switch effect {
+        case let .scroll(vertical, horizontal):
+            InputSynth.scroll(vertical: vertical, horizontal: horizontal)
+        case let .auxiliary(action, increasing, repeatCount):
+            let key: InputSynth.AuxKey = action == .volume
+                ? (increasing ? .soundUp : .soundDown)
+                : (increasing ? .brightnessUp : .brightnessDown)
+            InputSynth.postAuxKey(key, modifiers: [.shift, .option], repeatCount: repeatCount)
+        case let .discrete(forward):
+            discrete(binding, forward: forward)
         }
     }
 
@@ -167,8 +186,6 @@ final class ActionEngine: DialActions {
             InputSynth.postKey(K.z, flags: forward ? [.maskCommand, .maskShift] : .maskCommand)
         case .switchTabs:
             InputSynth.postKey(K.tab, flags: forward ? .maskControl : [.maskControl, .maskShift])
-        case .switchApps:
-            switchApp(forward: forward)
         case .mediaTracks:
             InputSynth.postAuxKey(forward ? .next : .previous)
         case .arrowsHorizontal:
@@ -184,36 +201,32 @@ final class ActionEngine: DialActions {
         }
     }
 
-    /// Holds ⌘ while the dial turns so the app switcher stays open, then
-    /// releases it shortly after the dial stops (or on click).
-    private func switchApp(forward: Bool) {
-        typealias K = InputSynth.Key
-        if !appSwitcherActive {
-            appSwitcherActive = true
-            InputSynth.postKeyState(K.command, down: true, flags: .maskCommand)
-        }
-        InputSynth.postKeyState(K.tab, down: true, flags: forward ? .maskCommand : [.maskCommand, .maskShift])
-        InputSynth.postKeyState(K.tab, down: false, flags: forward ? .maskCommand : [.maskCommand, .maskShift])
-        appSwitchReleaseTimer?.invalidate()
-        appSwitchReleaseTimer = Timer.scheduledTimer(withTimeInterval: 0.9, repeats: false) { [weak self] _ in
-            self?.finishAppSwitch()
-        }
-    }
-
     /// Returns true if a pending app switch was committed.
     @discardableResult
     func finishAppSwitch() -> Bool {
-        appSwitchReleaseTimer?.invalidate()
-        appSwitchReleaseTimer = nil
-        guard appSwitcherActive else { return false }
-        appSwitcherActive = false
-        InputSynth.postKeyState(InputSynth.Key.command, down: false, flags: [])
-        return true
+        appSwitch?.finish() ?? false
+    }
+
+    func shutdown() {
+        if let appSwitch {
+            appSwitch.shutdown()
+        } else {
+            rotationOutput.cancelPending()
+        }
     }
 
     // MARK: Clicks
 
     func perform(_ binding: ClickBinding) {
+        switch binding.action {
+        case .radialMenu, .nextMode:
+            performImmediately(binding)
+        default:
+            rotationOutput.enqueueAction { [weak self] in self?.performImmediately(binding) }
+        }
+    }
+
+    private func performImmediately(_ binding: ClickBinding) {
         switch binding.action {
         case .none: break
         case .leftClick: InputSynth.click(.left)
@@ -234,18 +247,30 @@ final class ActionEngine: DialActions {
         case .openApp:
             if let path = binding.appPath {
                 NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path),
-                                                   configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+                                                   configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                    if let error { NSLog("MacDial: unable to open configured application: %@", error.localizedDescription) }
+                }
             }
         }
     }
 
     /// Press and hold for mouse buttons, so the dial can drag things.
     func mouse(_ action: ClickAction, down: Bool) {
+        if action.isMouseButton {
+            rotationOutput.enqueueMouseButton(action, down: down) { [weak self] down in
+                self?.mouseImmediately(action, down: down)
+            }
+        } else {
+            rotationOutput.enqueueAction { [weak self] in self?.mouseImmediately(action, down: down) }
+        }
+    }
+
+    private func mouseImmediately(_ action: ClickAction, down: Bool) {
         switch action {
         case .leftClick: InputSynth.postMouse(.left, down: down)
         case .rightClick: InputSynth.postMouse(.right, down: down)
         case .middleClick: InputSynth.postMouse(.middle, down: down)
-        default: if !down { perform(ClickBinding(action)) }
+        default: if !down { performImmediately(ClickBinding(action)) }
         }
     }
 

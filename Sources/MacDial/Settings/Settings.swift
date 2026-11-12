@@ -22,25 +22,52 @@ extension KeyShortcut {
 }
 
 final class SettingsStore: ObservableObject {
-    private static let key = "dialConfig.v2"
+    private let storage: DialConfigStorage
+    @Published private(set) var recovery: DialConfigStorage.Recovery?
 
     @Published var config: DialConfig {
         didSet {
             guard config != oldValue else { return }
-            if let data = try? JSONEncoder().encode(config) {
-                UserDefaults.standard.set(data, forKey: SettingsStore.key)
+            guard recovery == nil else { return }
+            do {
+                try storage.save(config)
+            } catch {
+                recovery = storage.recovery
+                NSLog("MacDial: unable to save configuration: %@", String(describing: error))
             }
         }
     }
 
     init() {
-        if let data = UserDefaults.standard.data(forKey: SettingsStore.key),
-           let saved = try? JSONDecoder().decode(DialConfig.self, from: data) {
-            config = saved
-        } else {
-            config = DialConfig()
+        storage = DialConfigStorage()
+        config = storage.loadedConfig
+        recovery = storage.recovery
+        if let recovery {
+            NSLog("MacDial: saved settings protected: %@", recovery.reason)
         }
         if config.modes.isEmpty { config.modes = DialMode.defaults }
+    }
+
+    func exportOriginalSettings() {
+        guard let recovery, let data = recovery.originalData else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = recovery.suggestedFileName
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try data.write(to: url, options: .atomic)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
+    }
+
+    func replaceSavedSettings() throws {
+        do {
+            try storage.replaceSavedSettings(with: config)
+            recovery = nil
+        } catch {
+            recovery = storage.recovery
+            throw error
+        }
     }
 
     func selectMode(_ id: UUID) {

@@ -19,9 +19,9 @@ planned features already exist.
 ## Architecture and compatibility
 
 - Read [docs/architecture.md](docs/architecture.md) before changing boundaries.
-- Keep device/report handling and concrete platform adapters in `MacDial`,
-  testable configuration, gestures, and rotation selection in `MacDialKit`,
-  and lifecycle/composition in `App`. Preserve the `Device`, `Input`, `Actions`,
+- Keep device ownership and concrete platform adapters in `MacDial`, and report
+  decoding, configuration and Foundation-backed persistence, gestures, and
+  rotation selection in `MacDialKit`. Preserve the `Device`, `Input`, `Actions`,
   `Settings`, and `UI` responsibility boundaries described in the architecture.
 - Preserve macOS 14 support, native Apple Silicon execution, menu-bar behavior,
   permissions, and `local.macdial.MacDial` unless a task explicitly changes them.
@@ -59,3 +59,19 @@ configuration, check source/resource membership and packaged app metadata, and
 add focused tests for new behavior in the hostless MacDialKitTests target;
 do not report build or unit-test success as a hardware or UI test. Use the contribution
 checklist and state Surface Dial, permission, and macOS-version limits explicitly.
+
+For every new or changed function, identify each input's domain and its trust
+boundary. Validate externally supplied, decoded, arithmetic, and callback values
+before indexing, conversion, scheduling, or side effects; use constrained Swift
+types or documented caller invariants when they already guarantee validity.
+Handle malformed, missing, nonfinite, negative, out-of-range, and overflowing
+values as applicable without inventing limits, silently dropping errors, changing
+valid behavior, or rewriting saved configuration.
+
+Add deterministic regression tests for meaningful valid inputs, both boundaries
+and just-outside values, invalid inputs, stateful interactions, and settings
+compatibility. Cover every new validation branch, including its effect on state.
+Use the fake scheduler rather than sleeps. Where native code cannot reasonably
+run in the hostless target, test a small pure seam when it respects the source
+boundaries and explicitly report the remaining device/UI-only checks. See
+[contributing](docs/contributing.md#function-inputs-and-unit-tests).
