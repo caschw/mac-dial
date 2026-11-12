@@ -15,6 +15,11 @@ public struct RadialMenuSelection {
         self.continuousSelection = selected
     }
 
+    /// Forgets detents that have not yet crossed a selection step.
+    public mutating func discardPartialMovement() {
+        remainder = 0
+    }
+
     /// Returns true if at least one selection step was crossed.
     @discardableResult
     public mutating func move(by delta: Int) -> Bool {
