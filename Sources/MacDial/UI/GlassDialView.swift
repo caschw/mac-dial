@@ -28,6 +28,36 @@ struct AnnularSector: Shape {
     }
 }
 
+/// One contour prevents separate glass edges from opening a seam at the submenu join.
+struct DialOutline: Shape {
+    let arc: GlassDialArc?
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let radius = GlassDialView.diameter / 2
+        let sectors = arc.map {
+            RadialMenuGeometry.arcSectors(anchor: $0.anchor, count: $0.slots.count,
+                                         slotSpan: GlassDialView.arcSlotSpan)
+        } ?? []
+        guard let first = sectors.first, let last = sectors.last else {
+            return Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius,
+                                         width: radius * 2, height: radius * 2))
+        }
+
+        var path = Path()
+        path.addArc(center: center, radius: GlassDialView.arcOuterRadius,
+                    startAngle: .degrees(first.start - 90), endAngle: .degrees(last.end - 90),
+                    clockwise: false)
+        let join = polarOffset(degrees: last.end, radius: radius)
+        path.addLine(to: CGPoint(x: center.x + join.width, y: center.y + join.height))
+        path.addArc(center: center, radius: radius,
+                    startAngle: .degrees(last.end - 90), endAngle: .degrees(first.start + 270),
+                    clockwise: false)
+        path.closeSubpath()
+        return path
+    }
+}
+
 private struct RadialDividers: Shape {
     let angles: [Double]
     let innerRadius: CGFloat
@@ -172,7 +202,7 @@ struct GlassDialView: View {
     static let rootItemSize: CGFloat = 40
     static let rootIconRadius: CGFloat = diameter / 2 - rootItemSize / 2 - 12
     static let centerRadius: CGFloat = rootIconRadius - rootItemSize / 2 - 4
-    static let arcInnerRadius: CGFloat = diameter / 2 + 8
+    static let arcInnerRadius: CGFloat = diameter / 2
     static let arcOuterRadius: CGFloat = arcInnerRadius + 54
     static let arcSlotSpan: Double = 30
     /// Room for the outer arc on every side, so the panel never clips it.
@@ -180,9 +210,9 @@ struct GlassDialView: View {
 
     var body: some View {
         ZStack {
+            DialGlass(shape: DialOutline(arc: model.arc))
             RootDialView(model: model, isSubdued: model.arc != nil)
             CenterWell()
-                .scaleEffect(model.arc == nil ? 1 : 0.94)
             if let arc = model.arc {
                 ArcView(arc: arc)
                     .id(arc.id)
@@ -221,6 +251,7 @@ private struct RootDialView: View {
         let dividerColor = Color.primary.opacity(contrast == .increased ? 0.55 : 0.14)
 
         ZStack {
+            Circle().stroke(dividerColor, lineWidth: 0.5)
             if !sectors.isEmpty {
                 ZStack {
                     AnnularSector(startDegrees: -span / 2, endDegrees: span / 2,
@@ -244,9 +275,7 @@ private struct RootDialView: View {
             }
         }
         .frame(width: GlassDialView.diameter, height: GlassDialView.diameter)
-        .dialGlass(in: Circle())
         .opacity(isSubdued ? 0.6 : 1)
-        .scaleEffect(isSubdued ? 0.94 : 1)
     }
 }
 
@@ -286,8 +315,6 @@ private struct ArcView: View {
                     if arc.hasMoreAfter { overflowDot(at: last.end + 4, radius: iconRadius) }
                 }
                 .frame(width: GlassDialView.footprint.width, height: GlassDialView.footprint.height)
-                .dialGlass(in: AnnularSector(startDegrees: first.start, endDegrees: last.end,
-                                             innerRadius: inner, outerRadius: outer))
             }
             CenterLabel(arc: arc).frame(width: 100)
         }
@@ -329,7 +356,7 @@ private struct CenterWell: View {
 
     var body: some View {
         Circle()
-            .fill(Color(nsColor: .windowBackgroundColor).opacity(0.55))
+            .fill(Color(nsColor: .windowBackgroundColor).opacity(contrast == .increased ? 0.4 : 0.18))
             .overlay(Circle().stroke(Color.primary.opacity(contrast == .increased ? 0.55 : 0.14), lineWidth: 0.5))
             .frame(width: GlassDialView.centerRadius * 2, height: GlassDialView.centerRadius * 2)
     }
@@ -373,29 +400,24 @@ private struct CenterLabel: View {
 
 // MARK: - Glass and accessibility
 
-private struct DialGlass<S: SwiftUI.Shape>: ViewModifier {
+private struct DialGlass<S: SwiftUI.Shape>: View {
     let shape: S
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
 
-    func body(content: Content) -> some View {
-        let bordered = content.overlay {
-            if contrast == .increased { shape.stroke(Color.primary.opacity(0.6), lineWidth: 1) }
+    var body: some View {
+        ZStack {
+            if reduceTransparency {
+                shape.fill(Color(nsColor: .windowBackgroundColor))
+            } else {
+                // Attenuate only the material, not the labels or icons above it.
+                Color.clear
+                    .glassEffect(.clear, in: shape)
+                    .opacity(contrast == .increased ? 0.65 : 0.35)
+            }
+            shape.stroke(Color.primary.opacity(contrast == .increased ? 0.6 : 0.14),
+                         lineWidth: contrast == .increased ? 1 : 0.5)
         }
-        if reduceTransparency {
-            bordered.background(shape.fill(Color(nsColor: .windowBackgroundColor)))
-        } else {
-            bordered
-                .glassEffect(.clear, in: shape)
-                .background(shape.fill(Color(nsColor: .windowBackgroundColor)
-                    .opacity(contrast == .increased ? 0.45 : 0.25)))
-        }
-    }
-}
-
-private extension View {
-    func dialGlass<S: SwiftUI.Shape>(in shape: S) -> some View {
-        modifier(DialGlass(shape: shape))
     }
 }
 

@@ -68,6 +68,10 @@ navigation state into SwiftUI: the root dial, plus one outer arc anchored at the
 selected root sector and windowed to seven slots by
 `RadialMenuGeometry.visibleWindow`. The panel is positioned with
 `RadialMenuGeometry.clampedCenter` so the full arc footprint stays on screen.
+The root and active arc share one continuous glass contour, with the arc's
+inner radius equal to the unscaled root radius. Only the glass background is
+attenuated for transparency; icons and labels are separate foreground layers.
+Reduce Transparency substitutes an opaque background for the entire contour.
 `DialController` dismisses an open menu when the enabled modes or steps per
 revolution change. Production menus are currently a single level; the settings
 schema has no nested-menu representation.

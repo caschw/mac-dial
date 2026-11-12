@@ -66,8 +66,8 @@ seconds of inactivity, or when the enabled modes or sensitivity change while it
 is open.
 
 The menu supports nested items: clicking an item marked with a chevron opens an
-outer glass arc beside it with that item's options. The arc starts with a
-**Back** item; clicking it returns to the previous level. Long submenus show up
+outer glass arc attached directly to the circle with that item's options. The
+arc starts with a **Back** item; clicking it returns to the previous level. Long submenus show up
 to seven options at once, with dots at either end when more are available.
 Today the menu lists your enabled modes as a single level, so submenus appear
 only when nested items are provided.
