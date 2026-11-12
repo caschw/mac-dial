@@ -28,6 +28,47 @@ struct AnnularSector: Shape {
     }
 }
 
+private struct RadialDividers: Shape {
+    let angles: [Double]
+    let innerRadius: CGFloat
+    let outerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        for angle in angles {
+            let inner = polarOffset(degrees: angle, radius: innerRadius)
+            let outer = polarOffset(degrees: angle, radius: outerRadius)
+            path.move(to: CGPoint(x: rect.midX + inner.width, y: rect.midY + inner.height))
+            path.addLine(to: CGPoint(x: rect.midX + outer.width, y: rect.midY + outer.height))
+        }
+        return path
+    }
+}
+
+private struct SelectionArc: Shape {
+    var startDegrees: Double
+    var endDegrees: Double
+    let radius: CGFloat
+
+    var animatableData: AnimatablePair<Double, Double> {
+        get { AnimatablePair(startDegrees, endDegrees) }
+        set { (startDegrees, endDegrees) = (newValue.first, newValue.second) }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        if endDegrees - startDegrees >= 360 {
+            path.addEllipse(in: CGRect(x: center.x - radius, y: center.y - radius,
+                                       width: radius * 2, height: radius * 2))
+        } else if endDegrees > startDegrees {
+            path.addArc(center: center, radius: radius, startAngle: .degrees(startDegrees - 90),
+                        endAngle: .degrees(endDegrees - 90), clockwise: false)
+        }
+        return path
+    }
+}
+
 // MARK: - Presentation model
 
 struct GlassDialSlot: Identifiable, Equatable {
@@ -128,6 +169,9 @@ struct GlassDialView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let diameter: CGFloat = 228
+    static let rootItemSize: CGFloat = 40
+    static let rootIconRadius: CGFloat = diameter / 2 - rootItemSize / 2 - 12
+    static let centerRadius: CGFloat = rootIconRadius - rootItemSize / 2 - 4
     static let arcInnerRadius: CGFloat = diameter / 2 + 8
     static let arcOuterRadius: CGFloat = arcInnerRadius + 54
     static let arcSlotSpan: Double = 30
@@ -137,10 +181,14 @@ struct GlassDialView: View {
     var body: some View {
         ZStack {
             RootDialView(model: model, isSubdued: model.arc != nil)
+            CenterWell()
+                .scaleEffect(model.arc == nil ? 1 : 0.94)
             if let arc = model.arc {
                 ArcView(arc: arc)
                     .id(arc.id)
                     .transition(reduceMotion ? .opacity : .scale(scale: 0.9).combined(with: .opacity))
+            } else {
+                CenterLabel(model: model).frame(width: 100)
             }
         }
         .frame(width: Self.footprint.width, height: Self.footprint.height)
@@ -159,29 +207,41 @@ struct GlassDialView: View {
 private struct RootDialView: View {
     @ObservedObject var model: GlassDialModel
     let isSubdued: Bool
+    @Environment(\.colorSchemeContrast) private var contrast
 
-    private let itemSize: CGFloat = 40
+    private let itemSize = GlassDialView.rootItemSize
     private var radius: CGFloat { GlassDialView.diameter / 2 }
-    private var iconRadius: CGFloat { radius - itemSize / 2 - 12 }
+    private var iconRadius: CGFloat { GlassDialView.rootIconRadius }
+    private var innerRadius: CGFloat { GlassDialView.centerRadius }
 
     var body: some View {
         let sectors = RadialMenuGeometry.rootSectors(count: model.rootSlots.count)
         let span = sectors.first?.span ?? 360
+        let inset = span < 360 ? min(1.5, span / 4) : 0
+        let dividerColor = Color.primary.opacity(contrast == .increased ? 0.55 : 0.14)
 
         ZStack {
-            // Selection wedge, rotated around the ring so it travels along the circle.
-            AnnularSector(startDegrees: -span / 2, endDegrees: span / 2,
-                          innerRadius: iconRadius - itemSize / 2 - 4, outerRadius: radius - 4)
-                .fill(Color.accentColor.opacity(isSubdued ? 0.28 : 0.2))
+            if !sectors.isEmpty {
+                ZStack {
+                    AnnularSector(startDegrees: -span / 2, endDegrees: span / 2,
+                                  innerRadius: innerRadius, outerRadius: radius - 2)
+                        .fill(Color.primary.opacity(0.1))
+                    SelectionArc(startDegrees: -span / 2 + inset, endDegrees: span / 2 - inset,
+                                 radius: radius - 2.5)
+                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                }
                 .rotationEffect(.degrees(span * Double(model.rootContinuousSelection)))
+            }
+
+            RadialDividers(angles: sectors.count > 1 ? sectors.map(\.start) : [],
+                           innerRadius: innerRadius, outerRadius: radius - 2)
+                .stroke(dividerColor, lineWidth: 0.5)
 
             ForEach(Array(zip(model.rootSlots, sectors)), id: \.0.id) { slot, sector in
                 let isSelected = slot.id == model.rootSlots[safe: model.rootSelected]?.id
                 SlotIcon(slot: slot, isSelected: isSelected, size: itemSize)
                     .offset(polarOffset(degrees: sector.center, radius: iconRadius))
             }
-
-            if !isSubdued { CenterLabel(model: model).frame(width: 100) }
         }
         .frame(width: GlassDialView.diameter, height: GlassDialView.diameter)
         .dialGlass(in: Circle())
@@ -193,6 +253,7 @@ private struct RootDialView: View {
 /// The outer arc that shows the active submenu around the parent's selection.
 private struct ArcView: View {
     let arc: GlassDialArc
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private let inner = GlassDialView.arcInnerRadius, outer = GlassDialView.arcOuterRadius
     private let itemSize: CGFloat = 34
@@ -208,8 +269,14 @@ private struct ArcView: View {
                     if let selected = sectors[safe: arc.selected] {
                         AnnularSector(startDegrees: selected.start + 1, endDegrees: selected.end - 1,
                                       innerRadius: inner + 3, outerRadius: outer - 3)
-                            .fill(Color.accentColor.opacity(0.24))
+                            .fill(Color.primary.opacity(0.1))
+                        SelectionArc(startDegrees: selected.start + 1.5, endDegrees: selected.end - 1.5,
+                                     radius: outer - 2.5)
+                            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                     }
+                    RadialDividers(angles: sectors.dropFirst().map(\.start),
+                                   innerRadius: inner, outerRadius: outer)
+                        .stroke(Color.primary.opacity(contrast == .increased ? 0.55 : 0.14), lineWidth: 0.5)
                     ForEach(Array(zip(arc.slots, sectors)), id: \.0.id) { slot, sector in
                         SlotIcon(slot: slot, isSelected: slot.id == arc.slots[safe: arc.selected]?.id,
                                  size: itemSize)
@@ -229,7 +296,7 @@ private struct ArcView: View {
     private func overflowDot(at degrees: Double, radius: CGFloat) -> some View {
         Image(systemName: "ellipsis")
             .font(.system(size: 9, weight: .semibold))
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(Color.primary.opacity(0.8))
             .rotationEffect(.degrees(degrees))
             .offset(polarOffset(degrees: degrees, radius: radius))
     }
@@ -242,17 +309,29 @@ private struct SlotIcon: View {
 
     var body: some View {
         Image(systemName: slot.symbol)
-            .font(.system(size: 15, weight: isSelected ? .semibold : .regular))
-            .foregroundStyle(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+            .font(.system(size: 17, weight: isSelected ? .semibold : .regular))
+            .foregroundStyle(Color.primary.opacity(isSelected ? 1 : 0.82))
+            .shadow(color: Color(nsColor: .windowBackgroundColor).opacity(0.7), radius: 2)
             .frame(width: size, height: size)
             .overlay(alignment: .bottomTrailing) {
                 if slot.kind == .group {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.primary.opacity(0.8))
                         .offset(x: -3, y: -5)
                 }
             }
+    }
+}
+
+private struct CenterWell: View {
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    var body: some View {
+        Circle()
+            .fill(Color(nsColor: .windowBackgroundColor).opacity(0.55))
+            .overlay(Circle().stroke(Color.primary.opacity(contrast == .increased ? 0.55 : 0.14), lineWidth: 0.5))
+            .frame(width: GlassDialView.centerRadius * 2, height: GlassDialView.centerRadius * 2)
     }
 }
 
@@ -287,7 +366,7 @@ private struct CenterLabel: View {
                 .contentTransition(.interpolate)
             Text(detail)
                 .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Color.primary.opacity(0.8))
         }
     }
 }
@@ -306,7 +385,10 @@ private struct DialGlass<S: SwiftUI.Shape>: ViewModifier {
         if reduceTransparency {
             bordered.background(shape.fill(Color(nsColor: .windowBackgroundColor)))
         } else {
-            bordered.glassEffect(.regular, in: shape)
+            bordered
+                .glassEffect(.clear, in: shape)
+                .background(shape.fill(Color(nsColor: .windowBackgroundColor)
+                    .opacity(contrast == .increased ? 0.45 : 0.25)))
         }
     }
 }

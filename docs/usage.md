@@ -15,7 +15,7 @@ For project lineage, licensing, and development documentation, see the [README](
   - **Turn** action
   - **Turn while pressed** action (hold the dial down and turn it)
   - **Click**, **double-click**, and **press & hold** actions
-- **Radial menu.** Press and hold the dial to open it, turn to highlight a mode, and click to choose it. The menu is a translucent glass dial with a rotating selection wedge; the center shows the highlighted name and what a click will do.
+- **Radial menu.** Press and hold the dial to open it, turn to highlight a mode, and click to choose it. The translucent glass dial marks the selected wedge with an accent along its outer edge; the center shows the highlighted name and what a click will do.
 - **Haptic feedback**: ticks while turning, plus a buzz when you change modes or move through the menu.
 - **Liquid Glass** radial menu and HUD, in light and dark mode. The menu respects Reduce Transparency, Reduce Motion, and Increase Contrast.
 - **Modern settings window** built with SwiftUI.
