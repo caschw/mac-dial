@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import CoreGraphics
+import MacDialKit
 
 // MARK: - Low level event synthesis
 
@@ -124,67 +125,53 @@ enum InputSynth {
 // MARK: - Action engine
 
 /// Executes the configured action for a rotation or click gesture.
-final class ActionEngine {
+final class ActionEngine: DialActions {
     weak var settings: SettingsStore?
     var onRadialMenu: (() -> Void)?
 
-    private var accumulator = 0
-    private var lastRotation = Date.distantPast
-    private var lastBindingKey = ""
-    private var appSwitchReleaseTimer: Timer?
-    private var appSwitcherActive = false
+    private let rotation = RotationInterpreter()
+    private let scheduler: GestureScheduler
+    private lazy var rotationOutput = RotationEffectQueue(
+        scheduleNext: { work in DispatchQueue.main.async(execute: work) },
+        perform: { [weak self] binding, effect in self?.performRotation(effect, binding: binding) })
+    private lazy var appSwitch = AppSwitchCoordinator(
+        output: rotationOutput, scheduler: scheduler,
+        postCommand: { down in
+            InputSynth.postKeyState(InputSynth.Key.command, down: down, flags: down ? .maskCommand : [])
+        },
+        postTab: { forward in
+            let flags: CGEventFlags = forward ? .maskCommand : [.maskCommand, .maskShift]
+            InputSynth.postKeyState(InputSynth.Key.tab, down: true, flags: flags)
+            InputSynth.postKeyState(InputSynth.Key.tab, down: false, flags: flags)
+        })
+
+    init(scheduler: GestureScheduler) {
+        self.scheduler = scheduler
+    }
 
     // MARK: Rotation
 
     func rotate(_ binding: RotationBinding, delta: Int) {
-        guard binding.action != .none, delta != 0 else { return }
-        let now = Date()
-        let elapsed = now.timeIntervalSince(lastRotation)
-        lastRotation = now
-        let direction = binding.reversed ? -delta : delta
-
-        if binding.action.isContinuous {
-            continuous(binding, direction: direction, elapsed: elapsed)
-            return
-        }
-
-        // Discrete: fire once per `stepsPerAction` detents, reset on pause,
-        // direction change or switching to another binding.
-        let key = "\(binding.action.rawValue)-\(binding.stepsPerAction)"
-        if key != lastBindingKey || elapsed > 0.8 || (accumulator != 0 && (accumulator > 0) != (direction > 0)) {
-            accumulator = 0
-            lastBindingKey = key
-        }
-        accumulator += direction
-        let steps = max(1, binding.stepsPerAction)
-        while abs(accumulator) >= steps {
-            let sign = accumulator > 0 ? 1 : -1
-            discrete(binding, forward: sign > 0)
-            accumulator -= sign * steps
+        rotation.rotate(binding, delta: delta, at: scheduler.now) { effects in
+            if binding.action == .switchApps {
+                guard let appSwitch else { return false }
+                return appSwitch.enqueue(effects, for: binding)
+            }
+            return rotationOutput.enqueue(effects, for: binding)
         }
     }
 
-    private func continuous(_ binding: RotationBinding, direction: Int, elapsed: TimeInterval) {
-        switch binding.action {
-        case .scrollVertical, .scrollHorizontal:
-            // Spinning faster scrolls further (up to ~4.75x).
-            let ms = min(elapsed * 1000, 150)
-            let acceleration = 1 + (150 - ms) / 40
-            let pixels = Int32((Double(direction) * 14 * binding.speed * acceleration).rounded())
-            if binding.action == .scrollVertical {
-                InputSynth.scroll(vertical: -pixels, horizontal: 0)
-            } else {
-                InputSynth.scroll(vertical: 0, horizontal: -pixels)
-            }
-        case .volume:
-            // ⇧⌥ + volume key = quarter steps, for fine control.
-            InputSynth.postAuxKey(direction > 0 ? .soundUp : .soundDown, modifiers: [.shift, .option],
-                                  repeatCount: abs(direction) * max(1, Int(binding.speed.rounded())))
-        case .brightness:
-            InputSynth.postAuxKey(direction > 0 ? .brightnessUp : .brightnessDown, modifiers: [.shift, .option],
-                                  repeatCount: abs(direction) * max(1, Int(binding.speed.rounded())))
-        default:
-            break
+    private func performRotation(_ effect: RotationEffect, binding: RotationBinding) {
+        switch effect {
+        case let .scroll(vertical, horizontal):
+            InputSynth.scroll(vertical: vertical, horizontal: horizontal)
+        case let .auxiliary(action, increasing, repeatCount):
+            let key: InputSynth.AuxKey = action == .volume
+                ? (increasing ? .soundUp : .soundDown)
+                : (increasing ? .brightnessUp : .brightnessDown)
+            InputSynth.postAuxKey(key, modifiers: [.shift, .option], repeatCount: repeatCount)
+        case let .discrete(forward):
+            discrete(binding, forward: forward)
         }
     }
 
@@ -199,8 +186,6 @@ final class ActionEngine {
             InputSynth.postKey(K.z, flags: forward ? [.maskCommand, .maskShift] : .maskCommand)
         case .switchTabs:
             InputSynth.postKey(K.tab, flags: forward ? .maskControl : [.maskControl, .maskShift])
-        case .switchApps:
-            switchApp(forward: forward)
         case .mediaTracks:
             InputSynth.postAuxKey(forward ? .next : .previous)
         case .arrowsHorizontal:
@@ -216,36 +201,32 @@ final class ActionEngine {
         }
     }
 
-    /// Holds ⌘ while the dial turns so the app switcher stays open, then
-    /// releases it shortly after the dial stops (or on click).
-    private func switchApp(forward: Bool) {
-        typealias K = InputSynth.Key
-        if !appSwitcherActive {
-            appSwitcherActive = true
-            InputSynth.postKeyState(K.command, down: true, flags: .maskCommand)
-        }
-        InputSynth.postKeyState(K.tab, down: true, flags: forward ? .maskCommand : [.maskCommand, .maskShift])
-        InputSynth.postKeyState(K.tab, down: false, flags: forward ? .maskCommand : [.maskCommand, .maskShift])
-        appSwitchReleaseTimer?.invalidate()
-        appSwitchReleaseTimer = Timer.scheduledTimer(withTimeInterval: 0.9, repeats: false) { [weak self] _ in
-            self?.finishAppSwitch()
-        }
-    }
-
     /// Returns true if a pending app switch was committed.
     @discardableResult
     func finishAppSwitch() -> Bool {
-        appSwitchReleaseTimer?.invalidate()
-        appSwitchReleaseTimer = nil
-        guard appSwitcherActive else { return false }
-        appSwitcherActive = false
-        InputSynth.postKeyState(InputSynth.Key.command, down: false, flags: [])
-        return true
+        appSwitch?.finish() ?? false
+    }
+
+    func shutdown() {
+        if let appSwitch {
+            appSwitch.shutdown()
+        } else {
+            rotationOutput.cancelPending()
+        }
     }
 
     // MARK: Clicks
 
     func perform(_ binding: ClickBinding) {
+        switch binding.action {
+        case .radialMenu, .nextMode:
+            performImmediately(binding)
+        default:
+            rotationOutput.enqueueAction { [weak self] in self?.performImmediately(binding) }
+        }
+    }
+
+    private func performImmediately(_ binding: ClickBinding) {
         switch binding.action {
         case .none: break
         case .leftClick: InputSynth.click(.left)
@@ -266,18 +247,30 @@ final class ActionEngine {
         case .openApp:
             if let path = binding.appPath {
                 NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path),
-                                                   configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+                                                   configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                    if let error { NSLog("MacDial: unable to open configured application: %@", error.localizedDescription) }
+                }
             }
         }
     }
 
     /// Press and hold for mouse buttons, so the dial can drag things.
     func mouse(_ action: ClickAction, down: Bool) {
+        if action.isMouseButton {
+            rotationOutput.enqueueMouseButton(action, down: down) { [weak self] down in
+                self?.mouseImmediately(action, down: down)
+            }
+        } else {
+            rotationOutput.enqueueAction { [weak self] in self?.mouseImmediately(action, down: down) }
+        }
+    }
+
+    private func mouseImmediately(_ action: ClickAction, down: Bool) {
         switch action {
         case .leftClick: InputSynth.postMouse(.left, down: down)
         case .rightClick: InputSynth.postMouse(.right, down: down)
         case .middleClick: InputSynth.postMouse(.middle, down: down)
-        default: if !down { perform(ClickBinding(action)) }
+        default: if !down { performImmediately(ClickBinding(action)) }
         }
     }
 

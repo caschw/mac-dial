@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import ServiceManagement
 
@@ -11,12 +12,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusBar: StatusBarController!
     private var settingsWindow: NSWindow?
     private var statusTimer: Timer?
+    private var recoverySubscription: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        controller = DialController(device: device, settings: settings)
+        let scheduler = MainRunLoopScheduler()
+        controller = DialController(device: device, settings: settings, actions: ActionEngine(scheduler: scheduler),
+                                    radial: RadialMenuController(), hud: HUDController(),
+                                    waker: BluetoothWaker(), scheduler: scheduler)
         statusBar = StatusBarController(settings: settings, device: device)
         statusBar.onOpenSettings = { [weak self] in self?.showSettings() }
         statusBar.onShowRadialMenu = { [weak self] in self?.controller.showRadialMenu() }
+        recoverySubscription = settings.$recovery.dropFirst().sink { [weak self] recovery in
+            guard recovery != nil else { return }
+            DispatchQueue.main.async {
+                guard let self, self.settings.recovery != nil else { return }
+                self.showSettings()
+            }
+        }
 
         device.onConnectionChanged = { [weak self] connected in
             if connected { self?.controller.waker.dialDidAttach() }
@@ -45,6 +57,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             AXIsProcessTrustedWithOptions(options)
             showSettings()
+        } else if settings.recovery != nil {
+            showSettings()
         }
     }
 
@@ -54,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        controller.actions.finishAppSwitch()
+        controller.actions.shutdown()
         controller.waker.isEnabled = false
         device.stop()
     }

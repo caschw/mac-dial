@@ -38,6 +38,40 @@ Retain the MIT license and all applicable upstream notices. For third-party code
 or artwork, verify licensing first and record repository, revision, relevant
 paths, and attribution in the change and related documentation.
 
+## Function inputs and unit tests
+
+When adding or changing production code, audit every input: arguments, decoded
+settings, HID report data, UI and system callbacks, timestamps, arithmetic, and
+values returned by collaborators. State each supported range and any caller-owned
+invariant at the appropriate boundary. Prefer constrained types when they
+guarantee validity; otherwise validate before indexing, numeric conversion,
+scheduling, and native side effects. Check nonfinite values, sign, overflow,
+empty or malformed data, and range endpoints where relevant. Report invalid
+input through the existing error or logging path; do not silently coerce valid
+values, invent limits, reset settings, or change decoding fallbacks.
+
+Add focused tests for new or changed input-bearing behavior to `MacDialKitTests`:
+
+- Exercise representative valid inputs, exact endpoints, values just outside
+  them, and extreme/nonfinite values when the type permits them.
+- Cover malformed, missing, old, and round-tripped settings without changing
+  keys, raw values, or fallback semantics; verify invalid input does not corrupt
+  later valid input or gesture/timer state.
+- Test ordering and interactions, such as press/rotate/release, cancellation,
+  direction changes, and exact timer boundaries. Advance the test clock rather
+  than sleeping or accessing real hardware.
+- Exercise every new validation and fallback branch. Avoid tests of trivial
+  accessors or guarantees already enforced by the language or a documented
+  caller invariant. Coverage helps find omissions but is not a substitute for
+  behavioral assertions.
+
+Use a narrowly scoped pure seam for native logic when practical without moving
+device/report ownership or duplicating source membership. The hostless suite
+does not execute IOKit callbacks, AppKit/SwiftUI, Bluetooth, permissions, or
+generated system events; list untested native paths and run the applicable
+hardware/UI checks separately. Run the shared scheme as described in
+[building](building.md#unit-tests).
+
 ## Validation checklist
 
 - Build the shared `MacDial` scheme for the configuration you changed; check both
@@ -45,9 +79,10 @@ paths, and attribution in the change and related documentation.
 - Inspect the packaged executable architecture, version, bundle identifier,
   app icon, minimum OS, menu-bar flag, privacy metadata, and local signature.
 - Confirm each Swift source and resource has exactly one target membership.
-- Add focused automated regression tests when changing behavior. No automated
-  test target currently exists; planned testability work is tracked in
-  [MacDialKit and behavior tests (#1)](https://github.com/caschw/mac-dial/issues/1).
+- Add focused automated regression tests when changing behavior. Run the
+  hostless `MacDialKitTests` target through the shared scheme, with coverage
+  when changing core logic; see [unit test commands](building.md#unit-tests).
+  Advance the test clock instead of sleeping or accessing real hardware.
 - With a Surface Dial, check pairing/connection, rotation and pressed rotation,
   click/double-click/hold, mode selection, haptics, sleep/wake, and disconnect.
 - Check settings save/reload and older exports, Accessibility/Input Monitoring/

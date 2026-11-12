@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import MacDialKit
 
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)

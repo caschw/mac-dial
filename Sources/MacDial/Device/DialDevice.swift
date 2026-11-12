@@ -1,6 +1,7 @@
 import Foundation
 import IOKit
 import IOKit.hid
+import MacDialKit
 
 /// Talks to the Surface Dial directly through IOKit's HID manager.
 ///
@@ -107,10 +108,11 @@ final class DialDevice {
         devices.append(device)
 
         let context = Unmanaged.passUnretained(self).toOpaque()
-        IOHIDDeviceRegisterInputReportCallback(device, buffer, DialDevice.reportBufferSize, { context, _, _, _, reportID, report, length in
+        IOHIDDeviceRegisterInputReportCallback(device, buffer, DialDevice.reportBufferSize, { context, result, _, _, reportID, report, length in
             guard let context else { return }
-            let bytes = UnsafeBufferPointer(start: report, count: length)
-            Unmanaged<DialDevice>.fromOpaque(context).takeUnretainedValue().handleReport(id: reportID, bytes: bytes)
+            let bytes = UnsafeBufferPointer(start: report, count: DialDevice.reportBufferSize)
+            Unmanaged<DialDevice>.fromOpaque(context).takeUnretainedValue()
+                .handleReport(id: reportID, result: result, bytes: bytes, length: length)
         }, context)
 
         if let serial = IOHIDDeviceGetProperty(device, kIOHIDSerialNumberKey as CFString) as? String {
@@ -140,19 +142,28 @@ final class DialDevice {
 
     // MARK: - Input
 
-    private func handleReport(id: UInt32, bytes: UnsafeBufferPointer<UInt8>) {
-        // Report 1: [reportID, buttons, rotation (int8), ...]
-        guard bytes.count >= 3, bytes[0] == 1 else { return }
-
-        let button: ButtonState = bytes[1] & 1 == 1 ? .pressed : .released
-        let rotation = Int(Int8(bitPattern: bytes[2]))
-
-        if button != lastButton {
-            lastButton = button
-            onButton?(button)
-        }
-        if rotation != 0 {
-            onRotate?(rotation)
+    private func handleReport(id: UInt32, result: IOReturn, bytes: UnsafeBufferPointer<UInt8>, length: Int) {
+        switch DialInputReport.decode(succeeded: result == kIOReturnSuccess, buffer: bytes,
+                                      length: length, wasPressed: lastButton == .pressed) {
+        case .failure(.callbackFailed):
+            NSLog("MacDial: input report failed (0x%08x)", result)
+        case .failure(.invalidLength):
+            NSLog("MacDial: invalid input report buffer (id %u, length %ld)", id, length)
+        case .failure(.shortReport):
+            NSLog("MacDial: ignoring short input report (id %u, length %ld)", id, length)
+        case .failure(.unsupportedHeader(let header)):
+            NSLog("MacDial: ignoring unsupported input report (id %u, header %u)", id, header)
+        case .success(let events):
+            for event in events {
+                switch event {
+                case .button(let isPressed):
+                    let button: ButtonState = isPressed ? .pressed : .released
+                    lastButton = button
+                    onButton?(button)
+                case .rotation(let delta):
+                    onRotate?(delta)
+                }
+            }
         }
     }
 

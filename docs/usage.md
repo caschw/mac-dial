@@ -36,6 +36,10 @@ For project lineage, licensing, and development documentation, see the [README](
 | Arrow keys | ← → or ↑ ↓ |
 | Custom | Any keyboard shortcut for each direction |
 
+To keep controls responsive, a rotation that would leave more than 4,096 system
+events pending is ignored and logged. Normal settings produce at most 512 events
+per dial report.
+
 ### What pressing can do
 
 Left, right, or middle click · double click · play/pause · mute · next/previous track · Mission Control · show desktop · app windows · open the radial menu · next mode · any keyboard shortcut · open an app
@@ -70,6 +74,12 @@ In every mode, **press & hold** opens the radial menu. Everything can be changed
 1. Open the battery cover and hold the button next to the batteries until the light blinks.
 2. In **System Settings › Bluetooth**, connect to **Surface Dial**.
 3. A dial icon appears in the menu bar. Click it and choose **Settings…** to set up your modes.
+
+If Settings warns that saved settings cannot be fully understood, the original
+remains unchanged and edits are temporary. Use **Export Original…** to keep a
+copy, then **Replace Saved Settings…** only if you want to save the settings
+currently shown. If another instance changes the saved settings, Mac Dial
+protects the newer value and asks for confirmation again.
 
 ### Tips
 

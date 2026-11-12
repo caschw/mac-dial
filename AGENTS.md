@@ -19,9 +19,10 @@ planned features already exist.
 ## Architecture and compatibility
 
 - Read [docs/architecture.md](docs/architecture.md) before changing boundaries.
-- Keep device/report handling in `Device`, gestures in `Input`, generated events
-  in `Actions`, configuration and its settings views in `Settings`, presentation
-  in `UI`, and lifecycle/composition in `App`.
+- Keep device ownership and concrete platform adapters in `MacDial`, and report
+  decoding, configuration and Foundation-backed persistence, gestures, and
+  rotation selection in `MacDialKit`. Preserve the `Device`, `Input`, `Actions`,
+  `Settings`, and `UI` responsibility boundaries described in the architecture.
 - Preserve macOS 14 support, native Apple Silicon execution, menu-bar behavior,
   permissions, and `local.macdial.MacDial` unless a task explicitly changes them.
 - Do not reset settings when changing the app version. Preserve the
@@ -29,8 +30,8 @@ planned features already exist.
   values, and fallback decoding behavior; design and document migrations first.
 - Keep the checked-in Xcode project authoritative. Include each Swift file
   exactly once in its owning target's Compile Sources phase, keep resource
-  membership correct, and keep the shared `MacDial` scheme usable. Future
-  framework sources belong in the framework target, not duplicated in the app.
+  membership correct, and keep the shared `MacDial` scheme usable. MacDialKit
+  sources belong in the framework target, not duplicated in the app or tests.
   Do not reintroduce a parallel SwiftPM or shell build.
 
 ## Swift and documentation standards
@@ -55,6 +56,22 @@ information for copied code or assets; a link alone is not license permission.
 
 Use the shared scheme and [docs/building.md](docs/building.md). Build the affected
 configuration, check source/resource membership and packaged app metadata, and
-add focused tests for new behavior. No automated test target currently exists;
-do not report build success as a hardware or UI test. Use the contribution
+add focused tests for new behavior in the hostless MacDialKitTests target;
+do not report build or unit-test success as a hardware or UI test. Use the contribution
 checklist and state Surface Dial, permission, and macOS-version limits explicitly.
+
+For every new or changed function, identify each input's domain and its trust
+boundary. Validate externally supplied, decoded, arithmetic, and callback values
+before indexing, conversion, scheduling, or side effects; use constrained Swift
+types or documented caller invariants when they already guarantee validity.
+Handle malformed, missing, nonfinite, negative, out-of-range, and overflowing
+values as applicable without inventing limits, silently dropping errors, changing
+valid behavior, or rewriting saved configuration.
+
+Add deterministic regression tests for meaningful valid inputs, both boundaries
+and just-outside values, invalid inputs, stateful interactions, and settings
+compatibility. Cover every new validation branch, including its effect on state.
+Use the fake scheduler rather than sleeps. Where native code cannot reasonably
+run in the hostless target, test a small pure seam when it respects the source
+boundaries and explicitly report the remaining device/UI-only checks. See
+[contributing](docs/contributing.md#function-inputs-and-unit-tests).
