@@ -13,7 +13,7 @@ haptic output. CoreBluetooth keeps the paired dial ready for instant wake.
 | `App` | `main.swift` starts NSApplication; `AppDelegate` composes services, handles permissions, launch at login, settings windows, and teardown |
 | `Device` | `DialDevice` owns HID discovery, reports, connection state, and haptics; `BluetoothWaker` manages wake reconnection |
 | `Input` | `DialController` forwards reports to MacDialKit and coordinates settings, actions, and overlays; `MainRunLoopScheduler` supplies Foundation timers and wall-clock time |
-| `Actions` | `Actions.swift` implements native system, keyboard, mouse, volume, brightness, and media operations |
+| `Actions` | `Actions.swift` implements native system, keyboard, mouse, volume, brightness, and media operations; `AudioOutputService` owns Core Audio discovery, listeners, and selected-device volume control |
 | `Settings` | `SettingsStore` publishes configuration changes and provides recovery UI; AppKit shortcut helpers and `SettingsView` provide presentation |
 | `UI` | `StatusBarController` handles the menu bar; `Overlays` contains the radial-menu controller, panels, and HUD; `GlassDialView` renders the glass dial and nested arcs; `DialGlyph` draws icons |
 
@@ -24,7 +24,7 @@ haptic output. CoreBluetooth keeps the paired dial ready for instant wake.
 | `Device` | Pure HID report validation and ordered button/rotation decoding |
 | `Settings` | Codable configuration, stable action enums and bindings, mode selection, and protected settings persistence |
 | `Input` | `GestureInterpreter` maps button/rotation input to actions and menu operations; injectable scheduling and side-effect protocols |
-| `Actions` | `RotationInterpreter` selects effects; `RotationEffectQueue` delivers bounded, ordered batches; `AppSwitchCoordinator` sequences app-switch keys and timers |
+| `Actions` | `RotationInterpreter` selects effects; `RotationEffectQueue` delivers bounded, ordered batches; `AppSwitchCoordinator` sequences app-switch keys and timers; audio preferences, eligibility, scalar arithmetic, and menu payloads remain Foundation-only |
 | `UI` | Radial-menu selection and detent accumulation, nested-menu navigation (`RadialMenuNavigation`), and dial/arc geometry (`RadialMenuGeometry`) |
 
 MacDialKit imports only Foundation. It does not instantiate hardware services,
@@ -63,7 +63,10 @@ it only through `DialMenu` (`isVisible`, `move`, `confirm`, `dismiss`).
 `RadialMenuController` owns a
 `RadialMenuNavigation` built from the enabled modes; confirming a group pushes a
 frame whose first slot is **Back**, confirming **Back** pops it, and only a leaf
-selection closes the menu and selects a mode. `GlassDialModel` projects the
+selection closes the menu only after its handler succeeds. Ordinary leaves
+select a mode; output leaves update the volume target without changing the
+operating mode. Informational or stale choices leave the menu open.
+`GlassDialModel` projects the
 navigation state into SwiftUI: the root dial, plus one outer arc anchored at the
 selected root sector and windowed to seven slots by
 `RadialMenuGeometry.visibleWindow`. The panel is positioned with
@@ -78,8 +81,34 @@ fixed view rather than rotating the glass host, which can displace the native
 material outside the dial. Reduce Transparency substitutes an opaque
 background for the entire contour and omits the inset glass effects.
 `DialController` dismisses an open menu when the enabled modes or steps per
-revolution change. Production menus are currently a single level; the settings
-schema has no nested-menu representation.
+revolution change. Volume Output is a utility group with live device choices in
+the secondary arc. Its optional mode kind distinguishes it from ordinary modes;
+there is still no user-configurable nested-menu schema. Live tree replacement
+validates atomically, retains surviving group paths and selected stable IDs,
+discards partial detents, and selects Back when an arc choice disappears.
+
+`AudioOutputService` receives Core Audio notifications on the main queue and
+coalesces discovery refreshes. It observes device/default-output changes,
+device ownership/name/liveness/streams, and output-stream virtual formats.
+Stable Core Audio UIDs identify choices; names are display labels only.
+Settings retains disabled UID/name records even when disconnected, while new
+supported devices are eligible unless disabled. The selected UID is independent
+of menu hiding. Missing targets temporarily use the existing system-volume key
+path; returning targets resume automatically. Connected targets with unavailable
+controls report errors rather than redirecting volume elsewhere. System routing,
+mute, and media actions are unchanged.
+
+Core Audio property sizes, returned array sizes, identities, and overflowing
+channel counts are checked before use. Volume writes require writable master
+controls or all writable output channels and finite scalars in 0...1. Fine
+steps use 1/64 of the scalar range, saturate large positive counts safely,
+preserve channel balance, and attempt rollback on partial channel-write failure.
+Direct writes do not trigger the native macOS volume HUD. Explicit utility entry
+and successful output selection cancel pending click/hold timers; they do not
+replace the working mode or announce a second mode transition.
+Next Mode retains an in-memory utility cursor so a later cycle advances past
+the utility rather than reopening it indefinitely. An ordinary mode selection
+clears that cursor; no temporary mode ID is written to preferences.
 
 `AppDelegate` creates shared settings, device, status, scheduler, action, wake,
 and overlay collaborators and injects them into `DialController`. The controller
@@ -129,6 +158,15 @@ Bluetooth peripheral identifier uses `dialPeripheralIdentifier`. The bundle
 identifier is `local.macdial.MacDial`, which identifies the app's standard
 preferences domain. Marketing versions are independent of the settings schema;
 changing the app version must not reset saved configuration.
+
+The additive `audioOutput` preferences hold the selected UID and disabled
+UID/name records. An optional `kind` marks utility modes; legacy absence denotes
+ordinary modes. A `volumeOutputModeIntroduced` marker permits a one-time,
+idempotent addition of Volume Output to existing installations. The migration
+preserves custom modes, bindings, selection, and all other settings, explicitly
+saves only when storage is writable, and respects later utility deletion.
+Malformed preferences, duplicate/empty identities, and unknown fields or kinds
+remain subject to the protected-storage policy below.
 
 Preserve Codable keys, enum raw values, default/fallback decoding, and exported
 settings compatibility. Any future schema change needs migration design and

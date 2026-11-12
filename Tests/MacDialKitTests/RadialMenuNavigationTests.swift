@@ -161,4 +161,35 @@ final class RadialMenuNavigationTests: XCTestCase {
         XCTAssertNil(RadialMenuSlot<Int>.back.item)
         XCTAssertEqual(RadialMenuSlot.item(tree[0]).item?.title, "A")
     }
+
+    func testLiveReplacementPreservesNestedPathsAndSafelyHandlesRemovedGroups() throws {
+        var navigation = try RadialMenuNavigation(items: tree, selectedID: "g", detentsPerItem: 2)
+        _ = navigation.confirm()
+        XCTAssertTrue(navigation.selectItem(id: "h"))
+        _ = navigation.confirm()
+        try navigation.replaceItems([tree[1], tree[2], tree[0]])
+        XCTAssertEqual(navigation.depth, 2)
+        XCTAssertEqual(navigation.current.selectedSlot.item?.id, "h1")
+        XCTAssertFalse(navigation.move(by: -1))
+        navigation.move(by: -1)
+        XCTAssertNil(navigation.current.selectedSlot.item)
+        try navigation.replaceItems(tree)
+        XCTAssertNil(navigation.current.selectedSlot.item, "Back remains selected during refresh")
+        let changed: [Item] = [.group(id: "g", title: "Changed", symbol: "folder", children: [
+            .leaf(id: "g1", title: "G1", symbol: "", payload: 11),
+        ])]
+        try navigation.replaceItems(changed)
+        XCTAssertEqual(navigation.depth, 1)
+        XCTAssertNil(navigation.current.selectedSlot.item)
+        let leaf: Item = .leaf(id: "g", title: "Now a leaf", symbol: "", payload: 99)
+        try navigation.replaceItems([leaf])
+        XCTAssertEqual(navigation.depth, 0)
+        XCTAssertEqual(navigation.current.selectedSlot.item?.id, "g")
+        XCTAssertThrowsError(try navigation.replaceItems([leaf, leaf]))
+        XCTAssertEqual(navigation.current.selectedSlot.item?.id, "g")
+        XCTAssertEqual(leafPayload(navigation.confirm()), 99)
+        try navigation.replaceItems([tree[0]])
+        XCTAssertEqual(navigation.depth, 0)
+        XCTAssertEqual(navigation.current.selectedSlot.item?.id, "a")
+    }
 }

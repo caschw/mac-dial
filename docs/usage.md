@@ -27,7 +27,7 @@ For project lineage, licensing, and development documentation, see the [README](
 | | |
 |---|---|
 | Scroll up/down or left/right | Smooth scrolling that speeds up the faster you spin |
-| System volume | Fine ¼-step control, with the native volume HUD |
+| Volume | Fine ¼-step control; follows macOS by default, or your chosen Volume Output |
 | Display brightness | Apple displays only |
 | Switch desktops (Spaces) | ⌃← / ⌃→ |
 | Switch apps | Holds ⌘⇥ while you turn, then click or pause to pick |
@@ -56,8 +56,9 @@ If a mode only uses a mouse click, with no double-click, press & hold, or turn-w
 | Zoom | Zoom in / out | – | Reset zoom (⌘0) | – |
 | Undo | Undo / redo | – | – | – |
 | Brightness *(off by default)* | Brightness | – | – | – |
+| Volume Output | Select an output in the secondary arc; then return to your previous mode | – | Confirm output | – |
 
-In every mode, **press & hold** opens the radial menu. Everything can be changed in Settings.
+In ordinary modes, **press & hold** opens the radial menu. Everything can be changed in Settings.
 
 ### Radial menu
 
@@ -69,8 +70,42 @@ The menu supports nested items: clicking an item marked with a chevron opens an
 outer glass arc attached directly to the circle with that item's options. The
 arc starts with a **Back** item; clicking it returns to the previous level. Long submenus show up
 to seven options at once, with dots at either end when more are available.
-Today the menu lists your enabled modes as a single level, so submenus appear
-only when nested items are provided.
+**Volume Output** opens a secondary arc containing available outputs that
+support software volume control. Device discovery stays live while the app and
+menu are open. An output selection closes the menu, shows
+**Volume output changed to [device name]** (when on-screen labels are enabled),
+and silently returns to your previous operating mode. Back, timeout, and
+dismissal do not change the volume target.
+
+### Volume Output
+
+This utility selects which device **Mac Dial's Volume actions** adjust. It does
+**not** change macOS's default output or route audio from other apps. For example,
+selecting headphones only changes their volume; it does not move currently
+playing audio to them. Without a selected device, volume uses the existing
+system-volume keys and native HUD. An explicitly selected device uses Core Audio
+directly and does not display the native macOS volume HUD. Mute and media actions
+keep their existing system-wide behavior.
+
+Settings > **Volume Output** lists live sound outputs. **Disable** only hides a
+device from the dial arc; it does not disconnect it, change routing, or clear a
+selected target. **Disabled Outputs** always retains locally remembered devices,
+including disconnected ones, with an **Enable** button. New and returning devices
+appear automatically unless disabled. Devices without software volume control
+remain visible in Settings but are excluded from the arc.
+
+If a selected device disconnects, volume temporarily follows macOS's current
+output and resumes the remembered device when it returns. If the device remains
+connected but cannot be adjusted, Mac Dial reports an error instead of silently
+changing another output. **Follow macOS Output** clears the explicit selection.
+
+Volume Output is added once to new and existing installations without changing
+custom modes or bindings. You can rename it, choose its icon (default:
+`speaker.wave.2.circle`), hide it from the dial, or delete it. A deleted utility
+stays deleted across launches; the **+** menu in Settings can add it again.
+Selecting it from Settings or the menu bar also opens its arc.
+With a Next Mode binding, the next activation advances past this one-shot
+utility instead of repeatedly opening it.
 
 ---
 

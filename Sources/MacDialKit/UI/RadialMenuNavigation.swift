@@ -128,6 +128,33 @@ public struct RadialMenuNavigation<Payload> {
         }
     }
 
+    /// Selects an existing item in the active frame, discarding partial movement.
+    @discardableResult
+    public mutating func selectItem(id: String) -> Bool {
+        guard let index = current.slots.firstIndex(where: { $0.item?.id == id }) else { return false }
+        frames[frames.count - 1].selection = RadialMenuSelection(
+            itemCount: current.slots.count, selected: index, detentsPerItem: detentsPerItem)!
+        return true
+    }
+
+    /// Atomically replaces a live tree, retaining surviving group paths and item IDs.
+    /// A removed selection goes to Back in an arc, or the first item at the root.
+    public mutating func replaceItems(_ items: [RadialMenuItem<Payload>]) throws {
+        var replacement = try Self(items: items, selectedID: root.selectedSlot.item?.id,
+                                   detentsPerItem: detentsPerItem)
+        for old in frames.dropFirst() {
+            guard let groupID = old.group?.id, replacement.current.selectedSlot.item?.id == groupID,
+                  replacement.current.selectedSlot.item?.isGroup == true else { break }
+            _ = replacement.confirm()
+            let index = old.selectedSlot.item.flatMap { selected in
+                replacement.current.slots.firstIndex(where: { $0.item?.id == selected.id })
+            } ?? 0
+            replacement.frames[replacement.frames.count - 1].selection = RadialMenuSelection(
+                itemCount: replacement.current.slots.count, selected: index, detentsPerItem: detentsPerItem)!
+        }
+        self = replacement
+    }
+
     private static func validate(_ items: [RadialMenuItem<Payload>], seen: inout Set<String>) throws {
         for item in items {
             guard seen.insert(item.id).inserted else { throw RadialMenuValidationError.duplicateID(item.id) }

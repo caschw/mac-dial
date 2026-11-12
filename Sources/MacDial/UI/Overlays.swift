@@ -46,7 +46,8 @@ final class OverlayPanel: NSPanel {
 
 /// Shows the glass dial and drives nested submenus with `RadialMenuNavigation`.
 final class RadialMenuController: DialMenu {
-    var onSelect: ((DialMode) -> Void)?
+    /// Returning false keeps the selector open after an invalid/stale choice.
+    var onSelect: ((DialMenuChoice) -> Bool)?
     private(set) var isVisible = false
 
     private let model = GlassDialModel()
@@ -55,20 +56,27 @@ final class RadialMenuController: DialMenu {
         panel.contentView = NSHostingView(rootView: GlassDialView(model: model))
         return panel
     }()
-    private var navigation: RadialMenuNavigation<DialMode>?
+    private var navigation: RadialMenuNavigation<DialMenuChoice>?
     private var idleTimer: Timer?
+    private var preferredOutputUID: String?
 
     func show(modes: [DialMode], selectedID: UUID, detentsPerItem: Int, atCursor: Bool) {
         let items = modes.map {
-            RadialMenuItem(id: $0.id.uuidString, title: $0.name, symbol: $0.icon, content: .leaf($0))
+            RadialMenuItem(id: $0.id.uuidString, title: $0.name, symbol: $0.icon, content: .leaf(DialMenuChoice.mode($0)))
         }
         show(items: items, selectedID: selectedID.uuidString, detentsPerItem: detentsPerItem, atCursor: atCursor)
     }
 
-    func show(items: [RadialMenuItem<DialMode>], selectedID: String?, detentsPerItem: Int, atCursor: Bool) {
+    func show(items: [RadialMenuItem<DialMenuChoice>], selectedID: String?, detentsPerItem: Int, atCursor: Bool,
+              enterGroup: Bool = false, preferredOutputUID: String? = nil) {
+        self.preferredOutputUID = preferredOutputUID
         do {
             navigation = try RadialMenuNavigation(items: items, selectedID: selectedID,
                                                   detentsPerItem: detentsPerItem)
+            if enterGroup, navigation?.current.selectedSlot.item?.isGroup == true {
+                _ = navigation?.confirm()
+                selectPreferredOutput()
+            }
         } catch {
             NSLog("MacDial: ignoring invalid radial menu configuration: %@", String(describing: error))
             return
@@ -100,14 +108,38 @@ final class RadialMenuController: DialMenu {
     func confirm() {
         guard isVisible, let result = navigation?.confirm() else { return }
         switch result {
-        case .enteredGroup, .returned:
+        case .enteredGroup:
+            selectPreferredOutput()
+            refreshModel()
+            bumpIdleTimer()
+        case .returned:
             refreshModel()
             bumpIdleTimer()
         case .selectedLeaf(let item):
-            guard case .leaf(let mode) = item.content else { return }
-            dismiss()
-            onSelect?(mode)
+            guard case .leaf(let choice) = item.content else { return }
+            if onSelect?(choice) == true { dismiss() }
+            else { bumpIdleTimer() }
         }
+    }
+
+    func replaceItems(_ items: [RadialMenuItem<DialMenuChoice>]) {
+        guard isVisible else { return }
+        do {
+            try navigation?.replaceItems(items)
+            refreshModel()
+        } catch {
+            NSLog("MacDial: unable to refresh audio menu: %@", error.localizedDescription)
+            dismiss()
+        }
+    }
+
+    private func selectPreferredOutput() {
+        guard let preferredOutputUID, let navigation,
+              let item = navigation.current.slots.compactMap(\.item).first(where: {
+                  if case .leaf(.audioOutput(let uid)) = $0.content { return uid == preferredOutputUID }
+                  return false
+              }) else { return }
+        self.navigation?.selectItem(id: item.id)
     }
 
     func dismiss() {
@@ -148,12 +180,14 @@ struct HUDView: View {
                 .foregroundStyle(.secondary)
             Text(model.title)
                 .font(.system(size: 12.5, weight: .medium))
+                .lineLimit(2)
+                .truncationMode(.middle)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 7)
         .glassBackground(in: Capsule())
         .padding(24)
-        .fixedSize()
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -170,7 +204,9 @@ final class HUDController {
         model.icon = icon
         model.title = title
 
-        let size = NSSize(width: 320, height: 100)
+        let availableWidth = OverlayPanel.screenUnderCursor()?.visibleFrame.width ?? 640
+        let textWidth = (title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 12.5, weight: .medium)]).width
+        let size = NSSize(width: min(availableWidth, max(320, textWidth + 100)), height: 100)
         panel.setContentSize(size)
         if let screen = OverlayPanel.screenUnderCursor() {
             let frame = screen.visibleFrame
