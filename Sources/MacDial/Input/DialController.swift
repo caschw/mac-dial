@@ -14,6 +14,8 @@ final class DialController {
     private let gestures: GestureInterpreter
     private var cancellables = Set<AnyCancellable>()
     private var lastModeID: UUID?
+    /// What the open radial menu was built from, so settings edits can close a stale menu.
+    private var shownMenu: (modes: [DialMode], stepsPerRevolution: Int)?
 
     init(device: DialDevice, settings: SettingsStore, actions: ActionEngine,
          radial: RadialMenuController, hud: HUDController, waker: BluetoothWaker,
@@ -50,6 +52,11 @@ final class DialController {
         }
         waker.isEnabled = config.fastWake
 
+        if radial.isVisible, let shownMenu,
+           shownMenu.modes != config.enabledModes || shownMenu.stepsPerRevolution != config.stepsPerRevolution {
+            radial.dismiss()
+        }
+
         let mode = config.currentMode
         if mode.id != lastModeID {
             lastModeID = mode.id
@@ -64,6 +71,7 @@ final class DialController {
         let modes = config.enabledModes
         guard !modes.isEmpty else { return }
         if config.menuHaptics { device.buzz(repeatCount: 1) }
+        shownMenu = (modes, config.stepsPerRevolution)
         radial.show(modes: modes, selectedID: config.currentMode.id,
                     detentsPerItem: max(1, config.stepsPerRevolution / 18),
                     atCursor: config.radialAtCursor)

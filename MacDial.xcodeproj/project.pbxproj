@@ -41,6 +41,7 @@
 		A20000000000000000000008 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* SettingsView.swift */; };
 		A20000000000000000000009 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000009 /* StatusBarController.swift */; };
 		A2000000000000000000000A /* Overlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000A /* Overlays.swift */; };
+		A2000000000000000000000D /* GlassDialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000E /* GlassDialView.swift */; };
 		A2000000000000000000000B /* DialGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000B /* DialGlyph.swift */; };
 		A2000000000000000000000C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000C /* Assets.xcassets */; };
 		A40000000000000000000001 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A30000000000000000000001; };
@@ -88,6 +89,7 @@
 		A10000000000000000000008 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A10000000000000000000009 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		A1000000000000000000000A /* Overlays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Overlays.swift; sourceTree = "<group>"; };
+		A1000000000000000000000E /* GlassDialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDialView.swift; sourceTree = "<group>"; };
 		A1000000000000000000000B /* DialGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialGlyph.swift; sourceTree = "<group>"; };
 		A1000000000000000000000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1000000000000000000000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -135,7 +137,7 @@
 		B10000000000000000000005 /* Input */ = {isa = PBXGroup; children = (A10000000000000000000005, AB0000000000000000000008); path = Input; sourceTree = "<group>"; };
 		B10000000000000000000006 /* Actions */ = {isa = PBXGroup; children = (A10000000000000000000006); path = Actions; sourceTree = "<group>"; };
 		B10000000000000000000007 /* Settings */ = {isa = PBXGroup; children = (A10000000000000000000007, A10000000000000000000008); path = Settings; sourceTree = "<group>"; };
-		B10000000000000000000008 /* UI */ = {isa = PBXGroup; children = (A10000000000000000000009, A1000000000000000000000A, A1000000000000000000000B); path = UI; sourceTree = "<group>"; };
+		B10000000000000000000008 /* UI */ = {isa = PBXGroup; children = (A10000000000000000000009, A1000000000000000000000A, A1000000000000000000000B, A1000000000000000000000E); path = UI; sourceTree = "<group>"; };
 		B10000000000000000000009 /* Resources */ = {isa = PBXGroup; children = (A1000000000000000000000C, A1000000000000000000000D); path = Resources; sourceTree = "<group>"; };
 		B1000000000000000000000A /* Frameworks */ = {
 			isa = PBXGroup;
@@ -216,7 +218,7 @@
 				A20000000000000000000003, A20000000000000000000004,
 				A20000000000000000000005, A20000000000000000000006,
 				A20000000000000000000007, A20000000000000000000008,
-				A20000000000000000000009, A2000000000000000000000A,
+				A20000000000000000000009, A2000000000000000000000A, A2000000000000000000000D,
 				A2000000000000000000000B,
 				AA0000000000000000000007,
 			);
