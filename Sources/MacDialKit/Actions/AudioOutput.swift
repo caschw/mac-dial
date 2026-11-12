@@ -130,3 +130,172 @@ public enum AudioOutputMenu {
         }
     }
 }
+
+/// An opaque native audio object handle; zero is the unknown object.
+public typealias AudioDeviceHandle = UInt32
+
+/// Minimal native audio surface used by `AudioOutputCore`. Implementations validate
+/// native property sizes; the core validates identities, channel counts, and scalars.
+public protocol AudioHardware {
+    func deviceHandles() throws -> [AudioDeviceHandle]
+    /// Returns nil when the system reports no default output.
+    func defaultOutputHandle() throws -> AudioDeviceHandle?
+    /// Returns nil when no device currently has the UID.
+    func handle(forUID uid: String) throws -> AudioDeviceHandle?
+    func isAlive(_ device: AudioDeviceHandle) throws -> Bool
+    func uid(of device: AudioDeviceHandle) throws -> String
+    func name(of device: AudioDeviceHandle) throws -> String
+    /// Per-stream output channel counts.
+    func outputStreamChannelCounts(_ device: AudioDeviceHandle) throws -> [UInt32]
+    func isVolumeWritable(_ device: AudioDeviceHandle, element: UInt32) throws -> Bool
+    func volume(_ device: AudioDeviceHandle, element: UInt32) throws -> Float
+    func setVolume(_ device: AudioDeviceHandle, element: UInt32, to value: Float) throws
+}
+
+public struct AudioOutputError: LocalizedError, Equatable {
+    public let message: String
+    public init(_ message: String) { self.message = message }
+    public var errorDescription: String? { message }
+}
+
+public struct AudioOutputSnapshot: Equatable {
+    public var outputs: [AudioOutput]
+    public var defaultUID: String?
+    /// Handles of every reported device, for change observation.
+    public var handles: [AudioDeviceHandle]
+    /// Devices that could not be inspected; other devices remain usable.
+    public var failures: [String]
+
+    public init(outputs: [AudioOutput], defaultUID: String?, handles: [AudioDeviceHandle], failures: [String]) {
+        self.outputs = outputs
+        self.defaultUID = defaultUID
+        self.handles = handles
+        self.failures = failures
+    }
+
+    public var discoveryError: String? { failures.isEmpty ? nil : failures.joined(separator: "\n") }
+}
+
+/// Platform-independent discovery, selection, and selected-device volume logic.
+public struct AudioOutputCore {
+    public static let mainElement: UInt32 = 0
+    public let hardware: AudioHardware
+
+    public init(hardware: AudioHardware) { self.hardware = hardware }
+
+    public func discover() throws -> AudioOutputSnapshot {
+        let handles = try hardware.deviceHandles()
+        var outputs: [AudioOutput] = []
+        var seen = Set<String>()
+        var failures: [String] = []
+        for device in handles {
+            do {
+                guard try hardware.isAlive(device), try channelCount(device) > 0 else { continue }
+                let uid = try nonempty(hardware.uid(of: device))
+                guard seen.insert(uid).inserted else {
+                    throw AudioOutputError("Core Audio reported duplicate output identities.")
+                }
+                outputs.append(AudioOutput(uid: uid, name: try nonempty(hardware.name(of: device)),
+                                           supportsVolume: !(try volumeElements(device)).isEmpty))
+            } catch {
+                failures.append("Cannot inspect audio device \(device): \(error.localizedDescription)")
+            }
+        }
+        var defaultUID: String?
+        if let device = try hardware.defaultOutputHandle(), device != 0 {
+            defaultUID = try nonempty(hardware.uid(of: device))
+        }
+        outputs.sort {
+            $0.name == $1.name ? $0.uid < $1.uid : $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+        return AudioOutputSnapshot(outputs: outputs, defaultUID: defaultUID, handles: handles, failures: failures)
+    }
+
+    /// Revalidates a menu choice against fresh discovery and the device itself.
+    public func validateSelection(_ uid: String, preferences: AudioOutputPreferences,
+                                  snapshot: AudioOutputSnapshot) throws -> AudioOutput {
+        if let error = snapshot.discoveryError, !snapshot.outputs.contains(where: { $0.uid == uid }) {
+            throw AudioOutputError(error)
+        }
+        guard let output = preferences.eligibleOutputs(snapshot.outputs).first(where: { $0.uid == uid }) else {
+            throw AudioOutputError("That volume output is no longer available. Choose another output.")
+        }
+        guard let device = try resolve(uid) else {
+            throw AudioOutputError("That sound output disconnected. Choose another output.")
+        }
+        guard !(try volumeElements(device)).isEmpty else {
+            throw AudioOutputError("\(output.name) no longer supports software volume control.")
+        }
+        return output
+    }
+
+    /// Returns false when the system volume-key path should be used: no chosen
+    /// target, or the chosen target is disconnected. Throws after a failed attempt
+    /// on an available chosen target; it never falls back to another device then.
+    public func adjustVolume(preferences: AudioOutputPreferences, increasing: Bool, repeatCount: Int) throws -> Bool {
+        guard let uid = preferences.selectedUID else { return false }
+        guard let device = try resolve(uid) else { return false }
+        let elements = try volumeElements(device)
+        guard !elements.isEmpty else {
+            throw AudioOutputError("The chosen volume output cannot be adjusted in software.")
+        }
+        let old = try elements.map { try hardware.volume(device, element: $0) }
+        let next = try AudioVolume.adjusted(old, increasing: increasing, repeatCount: repeatCount)
+        var written = 0
+        do {
+            for (element, value) in zip(elements, next) {
+                try hardware.setVolume(device, element: element, to: value)
+                written += 1
+            }
+        } catch {
+            // Avoid leaving a partially updated multichannel balance.
+            var messages = [error.localizedDescription]
+            for index in 0..<written {
+                do { try hardware.setVolume(device, element: elements[index], to: old[index]) }
+                catch { messages.append("Restore failed: \(error.localizedDescription)") }
+            }
+            throw AudioOutputError(messages.joined(separator: "\n"))
+        }
+        return true
+    }
+
+    /// Resolves the chosen identity directly, so an unrelated broken device cannot block volume.
+    public func resolve(_ uid: String) throws -> AudioDeviceHandle? {
+        guard !uid.isEmpty else { throw AudioOutputError("The selected sound output has an invalid identity.") }
+        guard let device = try hardware.handle(forUID: uid), device != 0, try hardware.isAlive(device) else {
+            return nil
+        }
+        guard try hardware.uid(of: device) == uid, try channelCount(device) > 0 else {
+            throw AudioOutputError("The selected sound output identity changed during discovery.")
+        }
+        return device
+    }
+
+    /// The main control if writable; otherwise every channel, so balance is never shifted.
+    public func volumeElements(_ device: AudioDeviceHandle) throws -> [UInt32] {
+        if try hardware.isVolumeWritable(device, element: Self.mainElement) { return [Self.mainElement] }
+        let count = try channelCount(device)
+        guard count > 0 else { return [] }
+        var elements: [UInt32] = []
+        for channel in 1...count {
+            guard try hardware.isVolumeWritable(device, element: channel) else { return [] }
+            elements.append(channel)
+        }
+        return elements
+    }
+
+    public func channelCount(_ device: AudioDeviceHandle) throws -> UInt32 {
+        var count: UInt32 = 0
+        for channels in try hardware.outputStreamChannelCounts(device) {
+            let (sum, overflow) = count.addingReportingOverflow(channels)
+            guard !overflow else { throw AudioOutputError("The sound output reported an overflowing channel count.") }
+            count = sum
+        }
+        return count
+    }
+
+    private func nonempty(_ value: String) throws -> String {
+        guard !value.isEmpty else { throw AudioOutputError("Core Audio reported an empty sound output identity or name.") }
+        return value
+    }
+}

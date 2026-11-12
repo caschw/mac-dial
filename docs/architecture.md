@@ -24,7 +24,7 @@ haptic output. CoreBluetooth keeps the paired dial ready for instant wake.
 | `Device` | Pure HID report validation and ordered button/rotation decoding |
 | `Settings` | Codable configuration, stable action enums and bindings, mode selection, and protected settings persistence |
 | `Input` | `GestureInterpreter` maps button/rotation input to actions and menu operations; injectable scheduling and side-effect protocols |
-| `Actions` | `RotationInterpreter` selects effects; `RotationEffectQueue` delivers bounded, ordered batches; `AppSwitchCoordinator` sequences app-switch keys and timers; audio preferences, eligibility, scalar arithmetic, and menu payloads remain Foundation-only |
+| `Actions` | `RotationInterpreter` selects effects; `RotationEffectQueue` delivers bounded, ordered batches; `AppSwitchCoordinator` sequences app-switch keys and timers; audio preferences, eligibility, scalar arithmetic, menu payloads, and `AudioOutputCore` discovery/selection/volume rules remain Foundation-only behind the `AudioHardware` protocol |
 | `UI` | Radial-menu selection and detent accumulation, nested-menu navigation (`RadialMenuNavigation`), and dial/arc geometry (`RadialMenuGeometry`) |
 
 MacDialKit imports only Foundation. It does not instantiate hardware services,
@@ -97,6 +97,13 @@ of menu hiding. Missing targets temporarily use the existing system-volume key
 path; returning targets resume automatically. Connected targets with unavailable
 controls report errors rather than redirecting volume elsewhere. System routing,
 mute, and media actions are unchanged.
+
+`AudioOutputService` implements the narrow `AudioHardware` protocol with
+size-validated Core Audio reads and writes, and delegates discovery filtering,
+duplicate-identity handling, selection revalidation, control-element choice,
+and rollback of partial multichannel writes to `AudioOutputCore` in MacDialKit.
+Hostless tests drive the core through a fake `AudioHardware`; listeners and
+published state stay in the app.
 
 Core Audio property sizes, returned array sizes, identities, and overflowing
 channel counts are checked before use. Volume writes require writable master

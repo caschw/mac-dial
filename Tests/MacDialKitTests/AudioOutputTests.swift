@@ -168,4 +168,208 @@ final class AudioOutputTests: XCTestCase {
         XCTAssertThrowsError(try navigation.replaceItems([]))
         XCTAssertEqual(navigation.current.selectedSlot.item?.id, before)
     }
+
+    // MARK: AudioOutputCore
+
+    private func core(_ hardware: FakeAudioHardware) -> AudioOutputCore { AudioOutputCore(hardware: hardware) }
+
+    private func selecting(_ uid: String?) -> AudioOutputPreferences {
+        var preferences = AudioOutputPreferences()
+        preferences.selectedUID = uid
+        return preferences
+    }
+
+    func testDiscoveryFiltersSortsAndIsolatesBrokenDevices() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "z", name: "Zeta", channels: [2], main: 0.5)
+        hardware.add(2, uid: "a", name: "alpha", channels: [1, 1], perChannel: [0.2, 0.4])
+        hardware.add(3, uid: "dead", name: "Dead", channels: [2], main: 0.5, alive: false)
+        hardware.add(4, uid: "mic", name: "Microphone", channels: [])
+        hardware.add(5, uid: "hdmi", name: "Display", channels: [2])
+        hardware.add(6, uid: "broken", name: "Broken", channels: [2], main: 0.5)
+        hardware.failingUID.insert(6)
+        hardware.add(7, uid: "z", name: "Duplicate", channels: [2], main: 0.5)
+        hardware.add(8, uid: "noname", name: "", channels: [2], main: 0.5)
+        hardware.add(9, uid: "partial", name: "Partial", channels: [2], perChannel: [0.5, nil])
+        hardware.defaultHandle = 1
+
+        let snapshot = try core(hardware).discover()
+        XCTAssertEqual(snapshot.outputs.map(\.uid), ["a", "hdmi", "partial", "z"])
+        XCTAssertEqual(snapshot.outputs.map(\.supportsVolume), [true, false, false, true])
+        XCTAssertEqual(snapshot.defaultUID, "z")
+        XCTAssertEqual(snapshot.handles, Array(1...9))
+        XCTAssertEqual(snapshot.failures.count, 3)
+        XCTAssertNotNil(snapshot.discoveryError)
+    }
+
+    func testDiscoveryReportsNoDefaultAndOverflowingChannels() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "huge", name: "Huge", channels: [UInt32.max, 1], main: 0.5)
+        let snapshot = try core(hardware).discover()
+        XCTAssertNil(snapshot.defaultUID)
+        XCTAssertEqual(snapshot.outputs, [])
+        XCTAssertEqual(snapshot.failures.count, 1)
+        hardware.listFails = true
+        XCTAssertThrowsError(try core(hardware).discover())
+    }
+
+    func testSelectionRevalidatesEligibilityAndDevice() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "spk", name: "Speakers", channels: [2], main: 0.5)
+        hardware.add(2, uid: "hdmi", name: "Display", channels: [2])
+        let core = core(hardware)
+        var snapshot = try core.discover()
+        var preferences = AudioOutputPreferences()
+        XCTAssertEqual(try core.validateSelection("spk", preferences: preferences, snapshot: snapshot).name, "Speakers")
+        XCTAssertThrowsError(try core.validateSelection("hdmi", preferences: preferences, snapshot: snapshot))
+        XCTAssertThrowsError(try core.validateSelection("gone", preferences: preferences, snapshot: snapshot))
+        preferences.disable(snapshot.outputs[1])
+        XCTAssertThrowsError(try core.validateSelection("spk", preferences: preferences, snapshot: snapshot))
+        preferences.enable("spk")
+
+        hardware.devices[1]?.alive = false
+        XCTAssertThrowsError(try core.validateSelection("spk", preferences: preferences, snapshot: snapshot)) {
+            XCTAssertTrue($0.localizedDescription.contains("disconnected"))
+        }
+        hardware.devices[1]?.alive = true
+        hardware.devices[1]?.main = nil
+        XCTAssertThrowsError(try core.validateSelection("spk", preferences: preferences, snapshot: snapshot)) {
+            XCTAssertTrue($0.localizedDescription.contains("no longer supports"))
+        }
+
+        snapshot.failures = ["discovery failed"]
+        XCTAssertThrowsError(try core.validateSelection("other", preferences: preferences, snapshot: snapshot)) {
+            XCTAssertEqual($0.localizedDescription, "discovery failed")
+        }
+    }
+
+    func testAdjustUsesSystemPathWithoutSelectionOrWhileDisconnectedThenResumes() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "spk", name: "Speakers", channels: [2], main: 0.5)
+        let core = core(hardware)
+        XCTAssertFalse(try core.adjustVolume(preferences: selecting(nil), increasing: true, repeatCount: 1))
+        XCTAssertFalse(try core.adjustVolume(preferences: selecting("absent"), increasing: true, repeatCount: 1))
+        hardware.devices[1]?.alive = false
+        XCTAssertFalse(try core.adjustVolume(preferences: selecting("spk"), increasing: true, repeatCount: 1))
+        XCTAssertEqual(hardware.writes.count, 0)
+        hardware.devices[1]?.alive = true
+        XCTAssertTrue(try core.adjustVolume(preferences: selecting("spk"), increasing: true, repeatCount: 1))
+        XCTAssertEqual(hardware.devices[1]?.main ?? 0, 0.5 + 1 / 64, accuracy: 0.0001)
+        XCTAssertThrowsError(try core.adjustVolume(preferences: selecting(""), increasing: true, repeatCount: 1))
+    }
+
+    func testAdjustPreservesPerChannelBalance() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "usb", name: "USB", channels: [1, 1], perChannel: [0.25, 0.5])
+        XCTAssertTrue(try core(hardware).adjustVolume(preferences: selecting("usb"), increasing: false, repeatCount: 64))
+        XCTAssertEqual(hardware.devices[1]?.channels.compactMap { $0 }, [0, 0])
+        hardware.devices[1]?.channels = [0.25, 0.5]
+        XCTAssertTrue(try core(hardware).adjustVolume(preferences: selecting("usb"), increasing: false, repeatCount: 16))
+        let levels = hardware.devices[1]?.channels.compactMap { $0 } ?? []
+        XCTAssertEqual(levels[1], 0.25, accuracy: 0.0001)
+        XCTAssertEqual(levels[0] / levels[1], 0.5, accuracy: 0.0001)
+    }
+
+    func testAdjustRejectsIdentityMismatchUnsupportedAndInvalidScalarsWithoutWriting() {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "spk", name: "Speakers", channels: [2], main: .nan)
+        hardware.add(2, uid: "hdmi", name: "Display", channels: [2])
+        hardware.add(3, uid: "loud", name: "Loud", channels: [2], main: 1.5)
+        let core = core(hardware)
+        for uid in ["spk", "hdmi", "loud"] {
+            XCTAssertThrowsError(try core.adjustVolume(preferences: selecting(uid), increasing: true, repeatCount: 1))
+        }
+        hardware.uidAliases["moved"] = 1
+        XCTAssertThrowsError(try core.adjustVolume(preferences: selecting("moved"), increasing: true, repeatCount: 1))
+        XCTAssertThrowsError(try core.adjustVolume(preferences: selecting("spk"), increasing: true, repeatCount: 0))
+        XCTAssertEqual(hardware.writes.count, 0)
+    }
+
+    func testAdjustRollsBackPartialMultichannelWrites() {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "usb", name: "USB", channels: [3], perChannel: [0.2, 0.4, 0.6])
+        hardware.failingWriteElement = 3
+        XCTAssertThrowsError(try core(hardware).adjustVolume(preferences: selecting("usb"), increasing: true,
+                                                             repeatCount: 8))
+        XCTAssertEqual(hardware.devices[1]?.channels.compactMap { $0 }, [0.2, 0.4, 0.6])
+        XCTAssertEqual(hardware.writes.map(\.element), [1, 2, 3, 1, 2])
+
+        hardware.failed = false
+        hardware.failRestore = true
+        XCTAssertThrowsError(try core(hardware).adjustVolume(preferences: selecting("usb"), increasing: true,
+                                                             repeatCount: 8)) {
+            XCTAssertTrue($0.localizedDescription.contains("Restore failed"))
+        }
+    }
+}
+
+private final class FakeAudioHardware: AudioHardware {
+    struct Device {
+        var uid: String
+        var name: String
+        var streams: [UInt32]
+        var alive = true
+        var main: Float?
+        /// Index 0 is channel 1; nil means the channel is not writable.
+        var channels: [Float?]
+    }
+    struct FakeError: Error {}
+
+    var devices: [AudioDeviceHandle: Device] = [:]
+    var order: [AudioDeviceHandle] = []
+    var defaultHandle: AudioDeviceHandle?
+    var failingUID = Set<AudioDeviceHandle>()
+    var uidAliases: [String: AudioDeviceHandle] = [:]
+    var listFails = false
+    var failingWriteElement: UInt32?
+    var failRestore = false
+    var failed = false
+    var writes: [(element: UInt32, value: Float)] = []
+
+    func add(_ handle: AudioDeviceHandle, uid: String, name: String, channels: [UInt32], main: Float? = nil,
+             perChannel: [Float?] = [], alive: Bool = true) {
+        devices[handle] = Device(uid: uid, name: name, streams: channels, alive: alive, main: main,
+                                 channels: perChannel)
+        order.append(handle)
+    }
+
+    private func device(_ handle: AudioDeviceHandle) throws -> Device {
+        guard let device = devices[handle] else { throw FakeError() }
+        return device
+    }
+
+    func deviceHandles() throws -> [AudioDeviceHandle] {
+        if listFails { throw FakeError() }
+        return order
+    }
+    func defaultOutputHandle() throws -> AudioDeviceHandle? { defaultHandle }
+    func handle(forUID uid: String) throws -> AudioDeviceHandle? {
+        uidAliases[uid] ?? order.first { devices[$0]?.uid == uid }
+    }
+    func isAlive(_ handle: AudioDeviceHandle) throws -> Bool { try device(handle).alive }
+    func uid(of handle: AudioDeviceHandle) throws -> String {
+        if failingUID.contains(handle) { throw FakeError() }
+        return try device(handle).uid
+    }
+    func name(of handle: AudioDeviceHandle) throws -> String { try device(handle).name }
+    func outputStreamChannelCounts(_ handle: AudioDeviceHandle) throws -> [UInt32] { try device(handle).streams }
+    func isVolumeWritable(_ handle: AudioDeviceHandle, element: UInt32) throws -> Bool {
+        let device = try device(handle)
+        if element == 0 { return device.main != nil }
+        let index = Int(element) - 1
+        return device.channels.indices.contains(index) && device.channels[index] != nil
+    }
+    func volume(_ handle: AudioDeviceHandle, element: UInt32) throws -> Float {
+        let device = try device(handle)
+        guard let value = element == 0 ? device.main : device.channels[Int(element) - 1] else { throw FakeError() }
+        return value
+    }
+    func setVolume(_ handle: AudioDeviceHandle, element: UInt32, to value: Float) throws {
+        writes.append((element, value))
+        if element == failingWriteElement || (failRestore && failed) {
+            failed = true
+            throw FakeError()
+        }
+        if element == 0 { devices[handle]?.main = value } else { devices[handle]?.channels[Int(element) - 1] = value }
+    }
 }

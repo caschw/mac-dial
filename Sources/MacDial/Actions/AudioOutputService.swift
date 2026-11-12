@@ -4,7 +4,7 @@ import CoreAudio
 import MacDialKit
 
 /// Core Audio ownership stays in the app; callbacks and clients use the main queue.
-final class AudioOutputService: ObservableObject {
+final class AudioOutputService: ObservableObject, AudioHardware {
     @Published private(set) var outputs: [AudioOutput] = []
     @Published private(set) var defaultUID: String?
     @Published private(set) var error: String?
@@ -37,41 +37,16 @@ final class AudioOutputService: ObservableObject {
 
     deinit { removeListeners() }
 
+    private var core: AudioOutputCore { AudioOutputCore(hardware: self) }
+
     func refresh() {
         do {
-            let ids: [AudioObjectID] = try array(AudioObjectID(kAudioObjectSystemObject),
-                                               selector: kAudioHardwarePropertyDevices)
-            var discovered: [AudioOutput] = []
-            var seen = Set<String>()
-            var failures: [String] = []
-            for id in ids {
-                do {
-                    guard try scalar(id, selector: kAudioDevicePropertyDeviceIsAlive, initial: UInt32(0)) != 0,
-                          try channelCount(id) > 0 else { continue }
-                    let uid = try string(id, selector: kAudioDevicePropertyDeviceUID)
-                    guard seen.insert(uid).inserted else {
-                        throw Failure(message: "Core Audio reported duplicate output identities.")
-                    }
-                    discovered.append(AudioOutput(uid: uid, name: try string(id, selector: kAudioObjectPropertyName),
-                                                  supportsVolume: !(try volumeElements(id)).isEmpty))
-                } catch {
-                    let message = "Cannot inspect audio device \(id): \(error.localizedDescription)"
-                    NSLog("MacDial: %@", message)
-                    failures.append(message)
-                }
-            }
-            let defaultID = try scalar(AudioObjectID(kAudioObjectSystemObject),
-                                       selector: kAudioHardwarePropertyDefaultOutputDevice, initial: AudioObjectID(0))
-            let currentUID = defaultID == kAudioObjectUnknown ? nil
-                : try string(defaultID, selector: kAudioDevicePropertyDeviceUID)
-            let sorted = discovered.sorted {
-                $0.name == $1.name ? $0.uid < $1.uid : $0.name.localizedStandardCompare($1.name) == .orderedAscending
-            }
-            if outputs != sorted { outputs = sorted }
-            if defaultUID != currentUID { defaultUID = currentUID }
-            let discoveryError = failures.isEmpty ? nil : failures.joined(separator: "\n")
-            if self.error != discoveryError { self.error = discoveryError }
-            installListeners(ids)
+            let snapshot = try core.discover()
+            for failure in snapshot.failures { NSLog("MacDial: %@", failure) }
+            if outputs != snapshot.outputs { outputs = snapshot.outputs }
+            if defaultUID != snapshot.defaultUID { defaultUID = snapshot.defaultUID }
+            if error != snapshot.discoveryError { error = snapshot.discoveryError }
+            installListeners(snapshot.handles)
         } catch {
             report(error)
             self.error = error.localizedDescription
@@ -82,59 +57,34 @@ final class AudioOutputService: ObservableObject {
 
     func select(_ uid: String, preferences: AudioOutputPreferences) throws -> AudioOutput {
         refresh()
-        guard error == nil || outputs.contains(where: { $0.uid == uid }) else {
-            throw Failure(message: error ?? "Sound output discovery failed.")
-        }
-        guard let output = preferences.eligibleOutputs(outputs).first(where: { $0.uid == uid }) else {
-            throw Failure(message: "That volume output is no longer available. Choose another output.")
-        }
-        let id = try deviceID(uid)
-        guard !(try volumeElements(id)).isEmpty else {
-            throw Failure(message: "\(output.name) no longer supports software volume control.")
-        }
-        return output
+        let snapshot = AudioOutputSnapshot(outputs: outputs, defaultUID: defaultUID, handles: [],
+                                           failures: error.map { [$0] } ?? [])
+        return try core.validateSelection(uid, preferences: preferences, snapshot: snapshot)
     }
 
     /// Returns false only when the existing system volume-key path should be used.
     func adjustVolume(preferences: AudioOutputPreferences, increasing: Bool, repeatCount: Int) -> Bool {
-        guard let uid = preferences.selectedUID else { return false }
         do {
-            guard let id = try findDeviceID(uid) else {
-                // A remembered, disconnected target uses the current system output temporarily.
-                return false
-            }
-            let elements = try volumeElements(id)
-            guard !elements.isEmpty else {
-                throw Failure(message: "The chosen volume output cannot be adjusted in software.")
-            }
-            let old = try elements.map {
-                try scalar(id, selector: kAudioDevicePropertyVolumeScalar, scope: kAudioDevicePropertyScopeOutput,
-                           element: $0, initial: Float(0))
-            }
-            let next = try AudioVolume.adjusted(old, increasing: increasing, repeatCount: repeatCount)
-            var written = 0
-            do {
-                for (element, value) in zip(elements, next) {
-                    try writeVolume(id, element: element, value: value)
-                    written += 1
-                }
-            } catch {
-                // Avoid leaving a partially updated multichannel balance.
-                for index in 0..<written {
-                    do { try writeVolume(id, element: elements[index], value: old[index]) }
-                    catch { report(error) }
-                }
-                throw error
-            }
+            return try core.adjustVolume(preferences: preferences, increasing: increasing, repeatCount: repeatCount)
         } catch {
             report(error)
+            return true
         }
-        return true
     }
 
-    private func findDeviceID(_ uid: String) throws -> AudioObjectID? {
-        guard !uid.isEmpty else { throw Failure(message: "The selected sound output has an invalid identity.") }
-        // Resolve the selected identity directly: a broken unrelated device must not block volume.
+    // MARK: AudioHardware
+
+    func deviceHandles() throws -> [AudioDeviceHandle] {
+        try array(AudioObjectID(kAudioObjectSystemObject), selector: kAudioHardwarePropertyDevices)
+    }
+
+    func defaultOutputHandle() throws -> AudioDeviceHandle? {
+        let id = try scalar(AudioObjectID(kAudioObjectSystemObject),
+                            selector: kAudioHardwarePropertyDefaultOutputDevice, initial: AudioObjectID(0))
+        return id == kAudioObjectUnknown ? nil : id
+    }
+
+    func handle(forUID uid: String) throws -> AudioDeviceHandle? {
         var uid = uid as CFString
         var address = address(kAudioHardwarePropertyTranslateUIDToDevice)
         var id = AudioObjectID(kAudioObjectUnknown)
@@ -147,55 +97,46 @@ final class AudioOutputService: ObservableObject {
         guard size == MemoryLayout<AudioObjectID>.size else {
             throw Failure(message: "Core Audio reported an invalid device identity size.")
         }
-        guard id != kAudioObjectUnknown,
-              try scalar(id, selector: kAudioDevicePropertyDeviceIsAlive, initial: UInt32(0)) != 0 else { return nil }
-        guard try string(id, selector: kAudioDevicePropertyDeviceUID) == uid as String,
-              try channelCount(id) > 0 else {
-            throw Failure(message: "The selected sound output identity changed during discovery.")
-        }
-        return id
+        return id == kAudioObjectUnknown ? nil : id
     }
 
-    private func deviceID(_ uid: String) throws -> AudioObjectID {
-        guard let id = try findDeviceID(uid) else {
-            throw Failure(message: "That sound output disconnected. Choose another output.")
-        }
-        return id
+    func isAlive(_ device: AudioDeviceHandle) throws -> Bool {
+        try scalar(device, selector: kAudioDevicePropertyDeviceIsAlive, initial: UInt32(0)) != 0
     }
 
-    private func channelCount(_ id: AudioObjectID) throws -> UInt32 {
-        let streams: [AudioStreamID] = try array(id, selector: kAudioDevicePropertyStreams,
+    func uid(of device: AudioDeviceHandle) throws -> String {
+        try string(device, selector: kAudioDevicePropertyDeviceUID)
+    }
+
+    func name(of device: AudioDeviceHandle) throws -> String {
+        try string(device, selector: kAudioObjectPropertyName)
+    }
+
+    func outputStreamChannelCounts(_ device: AudioDeviceHandle) throws -> [UInt32] {
+        let streams: [AudioStreamID] = try array(device, selector: kAudioDevicePropertyStreams,
                                                 scope: kAudioDevicePropertyScopeOutput)
-        var count: UInt32 = 0
-        for stream in streams {
-            let format = try scalar(stream, selector: kAudioStreamPropertyVirtualFormat,
-                                    initial: AudioStreamBasicDescription())
-            let (sum, overflow) = count.addingReportingOverflow(format.mChannelsPerFrame)
-            guard !overflow else { throw Failure(message: "The sound output reported an overflowing channel count.") }
-            count = sum
+        return try streams.map {
+            try scalar($0, selector: kAudioStreamPropertyVirtualFormat,
+                       initial: AudioStreamBasicDescription()).mChannelsPerFrame
         }
-        return count
     }
 
-    private func volumeElements(_ id: AudioObjectID) throws -> [AudioObjectPropertyElement] {
-        func writable(_ element: AudioObjectPropertyElement) throws -> Bool {
-            var address = address(kAudioDevicePropertyVolumeScalar, scope: kAudioDevicePropertyScopeOutput,
-                                  element: element)
-            guard AudioObjectHasProperty(id, &address) else { return false }
-            var settable = DarwinBoolean(false)
-            try check(AudioObjectIsPropertySettable(id, &address, &settable), "inspect volume control")
-            return settable.boolValue
-        }
-        if try writable(kAudioObjectPropertyElementMain) { return [kAudioObjectPropertyElementMain] }
-        let count = try channelCount(id)
-        guard count > 0 else { return [] }
-        var elements: [AudioObjectPropertyElement] = []
-        for channel in 1...count {
-            // All channels must be writable to control the output without shifting balance.
-            guard try writable(channel) else { return [] }
-            elements.append(channel)
-        }
-        return elements
+    func isVolumeWritable(_ device: AudioDeviceHandle, element: UInt32) throws -> Bool {
+        var address = address(kAudioDevicePropertyVolumeScalar, scope: kAudioDevicePropertyScopeOutput,
+                              element: element)
+        guard AudioObjectHasProperty(device, &address) else { return false }
+        var settable = DarwinBoolean(false)
+        try check(AudioObjectIsPropertySettable(device, &address, &settable), "inspect volume control")
+        return settable.boolValue
+    }
+
+    func volume(_ device: AudioDeviceHandle, element: UInt32) throws -> Float {
+        try scalar(device, selector: kAudioDevicePropertyVolumeScalar, scope: kAudioDevicePropertyScopeOutput,
+                   element: element, initial: Float(0))
+    }
+
+    func setVolume(_ device: AudioDeviceHandle, element: UInt32, to value: Float) throws {
+        try writeVolume(device, element: element, value: value)
     }
 
     private func writeVolume(_ id: AudioObjectID, element: AudioObjectPropertyElement, value: Float) throws {
