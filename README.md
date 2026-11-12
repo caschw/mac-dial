@@ -6,7 +6,7 @@ Mac Dial reads the dial through Apple's IOKit rather than relying on macOS's mou
 
 ## Requirements and installation
 
-- macOS 14 Sonoma or later; Apple Silicon is the primary development platform.
+- macOS 26 Tahoe or later; Apple Silicon is the primary development platform.
 - A paired Microsoft Surface Dial for hardware input.
 - Full Xcode with a macOS SDK providing SwiftUI's macOS 26 `glassEffect` API to build the app; Command Line Tools alone are not sufficient. Xcode 27.2 is verified; see [build prerequisites](docs/building.md#prerequisites).
 - Accessibility permission for generated input; Bluetooth permission for instant wake, and Input Monitoring if requested by macOS.

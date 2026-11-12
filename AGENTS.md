@@ -23,7 +23,7 @@ planned features already exist.
   decoding, configuration and Foundation-backed persistence, gestures, and
   rotation selection in `MacDialKit`. Preserve the `Device`, `Input`, `Actions`,
   `Settings`, and `UI` responsibility boundaries described in the architecture.
-- Preserve macOS 14 support, native Apple Silicon execution, menu-bar behavior,
+- Preserve the macOS 26.0 minimum, native Apple Silicon execution, menu-bar behavior,
   permissions, and `local.macdial.MacDial` unless a task explicitly changes them.
 - Do not reset settings when changing the app version. Preserve the
   `dialConfig.v2` and `dialPeripheralIdentifier` keys, Codable schema, enum raw

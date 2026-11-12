@@ -17,7 +17,7 @@ For project lineage, licensing, and development documentation, see the [README](
   - **Click**, **double-click**, and **press & hold** actions
 - **Radial menu.** Press and hold the dial to open it, turn to highlight a mode, and click to choose it.
 - **Haptic feedback**: ticks while turning, plus a buzz when you change modes or move through the menu.
-- **Liquid Glass** radial menu and HUD on macOS 26 or later, in light and dark mode; earlier supported macOS versions use an AppKit material fallback.
+- **Liquid Glass** radial menu and HUD, in light and dark mode.
 - **Modern settings window** built with SwiftUI.
 - **Dial menu bar icon** in four styles (Dial, Outline, Solid, Color), or the current mode's icon. Pick one in Settings › Appearance.
 - Adjustable sensitivity, gesture timing, an on-screen label when you switch modes, and an option to open at login.
@@ -63,7 +63,7 @@ In every mode, **press & hold** opens the radial menu. Everything can be changed
 
 ## Set up the app
 
-**Requires macOS 14 Sonoma or later.** Built for Apple Silicon Macs.
+**Requires macOS 26 Tahoe or later.** Built for Apple Silicon Macs.
 
 1. [Build from source](building.md), then copy **Mac Dial.app** to your **Applications** folder.
 2. Open it. Local builds are ad-hoc signed, not notarized. Only approve a build you trust if macOS asks you to review it in **System Settings > Privacy & Security**.

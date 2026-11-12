@@ -157,7 +157,7 @@ The desired direction is a more modern, primarily SwiftUI interface with native
 IOKit dial support, not replacement of the input stack. A future menu redesign
 should separate presentation from gesture interpretation, preserve configurable
 actions and haptic behavior, and consider accessibility, light/dark appearance,
-keyboard interaction, and macOS 14 fallbacks. Feature selection and acceptance
+and keyboard interaction on the macOS 26.0 minimum. Feature selection and acceptance
 criteria belong in separate changes; the redesign and feature ports are planned
 work rather than implemented functionality.
 

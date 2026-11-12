@@ -229,39 +229,11 @@ final class HUDController {
     }
 }
 
-/// Always-active blur. SwiftUI materials dim in windows that never become
-/// key, which is every overlay panel here.
-struct VisualEffect: NSViewRepresentable {
-    var material: NSVisualEffectView.Material
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = .behindWindow
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ view: NSVisualEffectView, context: Context) {
-        view.material = material
-    }
-}
-
-// MARK: - Liquid Glass (macOS 26) with a material fallback
+// MARK: - Liquid Glass
 
 extension View {
-    /// Liquid Glass on macOS 26+, a light/dark adaptive blur before that.
-    @ViewBuilder
+    /// Liquid Glass behind the content, so icons and text stay sharp.
     func glassBackground<S: SwiftUI.Shape>(in shape: S) -> some View {
-        if #available(macOS 26.0, *) {
-            self.glassEffect(.regular, in: shape)
-        } else {
-            self
-                .background {
-                    VisualEffect(material: .popover).clipShape(shape)
-                }
-                .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-        }
+        glassEffect(.regular, in: shape)
     }
 }

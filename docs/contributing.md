@@ -18,7 +18,8 @@ Swift indentation and use SwiftUI for new presentation where practical. AppKit
 and native frameworks remain appropriate for macOS integration. Avoid adding
 dependencies or abstractions without a concrete need.
 
-Maintain macOS 14 availability checks and main-thread UI updates. Do not
+Target the macOS 26.0 minimum without legacy availability branches, and keep
+UI updates on the main thread. Do not
 casually change gesture timers, event ordering, permission handling, settings
 keys, or Codable formats. Surface failures instead of silently reporting success.
 
