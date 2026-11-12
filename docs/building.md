@@ -104,10 +104,14 @@ Choose a fresh result-bundle path for each run. These are hostless framework
 tests: the app is built, but is not launched as a test host, so tests neither
 open hardware services nor require Accessibility, Bluetooth, or Input Monitoring
 permission. A controllable test scheduler advances gesture timers synchronously.
-Coverage for the app's native integrations and UI is not implied by framework
+Audio tests cover persistent hiding/reconnection, eligibility, scalar bounds
+and channel balance, compatible mode introduction, protected storage, and live
+arc navigation. Coverage for the app's native integrations and UI is not implied by framework
 coverage: the native HID callback, system-event generation, Bluetooth, and
 SwiftUI/AppKit settings and menus are not executed. The pure HID report decoder
-is covered independently. Include invalid inputs,
+and audio preference/volume/navigation seams are covered independently. Core Audio
+device discovery, listeners, real volume writes, and the output-confirmation
+capsule require native validation. Include invalid inputs,
 boundaries, stateful interactions, and saved-configuration compatibility in
 focused tests; see [function input requirements](contributing.md#function-inputs-and-unit-tests).
 There is no SwiftPM or alternate shell build.

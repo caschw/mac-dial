@@ -189,6 +189,8 @@ public final class DialConfigStorage {
 
     private static func isKnownOptional(_ key: String, in path: String) -> Bool {
         if path.isEmpty { return key == "currentModeID" }
+        if path == "audioOutput" { return key == "selectedUID" }
+        if path.hasPrefix("modes[") && !path.contains(".") { return key == "kind" }
         if path.hasSuffix(".rotate") || path.hasSuffix(".pressedRotate") {
             return key == "clockwise" || key == "counterClockwise"
         }
@@ -204,6 +206,7 @@ private struct KnownFields: Decodable {
     private enum CodingKeys: String, CodingKey {
         case modes, currentModeID, stepsPerRevolution, detentHaptics, menuHaptics, showHUD
         case radialAtCursor, menuBarGlyph, doubleClickInterval, longPressDuration, fastWake
+        case audioOutput, volumeOutputModeIntroduced
     }
 
     init(from decoder: Decoder) throws {
@@ -212,6 +215,8 @@ private struct KnownFields: Decodable {
             if container.contains(key) { _ = try container.decode(type, forKey: key) }
         }
         try check([DialMode].self, .modes)
+        try check(AudioOutputPreferences.self, .audioOutput)
+        try check(Bool.self, .volumeOutputModeIntroduced)
         if container.contains(.currentModeID) { _ = try container.decodeIfPresent(UUID.self, forKey: .currentModeID) }
         try check(Int.self, .stepsPerRevolution)
         try check(Bool.self, .detentHaptics)

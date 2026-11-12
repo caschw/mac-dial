@@ -24,9 +24,12 @@ extension KeyShortcut {
 final class SettingsStore: ObservableObject {
     private let storage: DialConfigStorage
     @Published private(set) var recovery: DialConfigStorage.Recovery?
+    var onVolumeOutput: ((UUID) -> Void)?
+    private var cyclingUtility: (id: UUID, operatingID: UUID)?
 
     @Published var config: DialConfig {
         didSet {
+            if config.currentModeID != oldValue.currentModeID { cyclingUtility = nil }
             guard config != oldValue else { return }
             guard recovery == nil else { return }
             do {
@@ -46,6 +49,16 @@ final class SettingsStore: ObservableObject {
             NSLog("MacDial: saved settings protected: %@", recovery.reason)
         }
         if config.modes.isEmpty { config.modes = DialMode.defaults }
+        if !config.volumeOutputModeIntroduced {
+            config.introduceVolumeOutputMode()
+            if recovery == nil {
+                do { try storage.save(config) }
+                catch {
+                    recovery = storage.recovery
+                    NSLog("MacDial: unable to save volume output migration: %@", error.localizedDescription)
+                }
+            }
+        }
     }
 
     func exportOriginalSettings() {
@@ -71,10 +84,30 @@ final class SettingsStore: ObservableObject {
     }
 
     func selectMode(_ id: UUID) {
+        guard let mode = config.modes.first(where: { $0.id == id }) else {
+            NSLog("MacDial: cannot select a missing mode")
+            return
+        }
+        cyclingUtility = nil
+        if mode.kind == .volumeOutput {
+            guard let onVolumeOutput else {
+                NSLog("MacDial: volume output selector is not connected")
+                return
+            }
+            onVolumeOutput(id)
+            return
+        }
         config.selectMode(id)
     }
 
     func selectNextMode() {
-        config.selectNextMode()
+        var next = config
+        let cursor = cyclingUtility.flatMap { $0.operatingID == config.currentMode.id ? $0.id : nil }
+        next.selectNextMode(after: cursor)
+        guard let id = next.currentModeID, next.enabledModes.contains(where: { $0.id == id }) else { return }
+        selectMode(id)
+        if next.modes.first(where: { $0.id == id })?.kind == .volumeOutput {
+            cyclingUtility = (id, config.currentMode.id)
+        }
     }
 }

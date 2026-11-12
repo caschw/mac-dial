@@ -181,11 +181,17 @@ public struct ClickBinding: Codable, Equatable {
 
 // MARK: - Mode (a "tool" in Surface Dial terms)
 
+public enum DialModeKind: String, Codable {
+    case volumeOutput
+}
+
 public struct DialMode: Codable, Equatable, Identifiable {
     public var id = UUID()
     public var name: String
     public var icon: String
     public var enabled = true
+    /// Absent in legacy modes; utility modes do not replace the operating mode.
+    public var kind: DialModeKind?
     public var rotate = RotationBinding()
     public var pressedRotate = RotationBinding()
     public var click = ClickBinding()
@@ -208,11 +214,17 @@ public struct DialMode: Codable, Equatable, Identifiable {
     }
 
     public static let iconChoices = [
-        "scroll", "speaker.wave.2.fill", "sun.max.fill", "rectangle.split.3x1", "plus.magnifyingglass",
+        "scroll", "speaker.wave.2.fill", "speaker.wave.2.circle", "sun.max.fill", "rectangle.split.3x1", "plus.magnifyingglass",
         "arrow.uturn.backward", "music.note", "square.on.square", "keyboard", "arrow.left.arrow.right",
         "dial.medium.fill", "paintbrush.pointed.fill", "timeline.selection", "film", "photo",
         "pencil.tip", "textformat.size", "slider.horizontal.3", "gamecontroller.fill", "star.fill",
     ]
+
+    public static var volumeOutput: DialMode {
+        var mode = DialMode(name: "Volume Output", icon: "speaker.wave.2.circle")
+        mode.kind = .volumeOutput
+        return mode
+    }
 
     public static var defaults: [DialMode] {
         [
@@ -239,6 +251,7 @@ public struct DialMode: Codable, Equatable, Identifiable {
                      rotate: RotationBinding(.undoRedo)),
             DialMode(name: "Brightness", icon: "sun.max.fill", enabled: false,
                      rotate: RotationBinding(.brightness)),
+            volumeOutput,
         ]
     }
 }
@@ -263,23 +276,38 @@ public struct DialConfig: Codable, Equatable {
     public var longPressDuration: Double = defaultLongPressDuration
     /// Reconnect to the dial as soon as it wakes from sleep (see BluetoothWaker).
     public var fastWake = true
+    public var audioOutput = AudioOutputPreferences()
+    public var volumeOutputModeIntroduced = true
 
     public var currentMode: DialMode {
-        modes.first(where: { $0.id == currentModeID }) ?? modes.first ?? DialMode.defaults[0]
+        modes.first(where: { $0.id == currentModeID && $0.kind == nil })
+            ?? modes.first(where: { $0.kind == nil }) ?? DialMode.defaults[0]
     }
 
     public var enabledModes: [DialMode] { modes.filter(\.enabled) }
 
     public mutating func selectMode(_ id: UUID) {
+        // Utility entry is handled by the app without replacing the operating mode.
+        guard modes.first(where: { $0.id == id })?.kind == nil else { return }
         currentModeID = id
     }
 
-    /// Cycles through enabled modes, starting at the first if the current mode is disabled.
-    public mutating func selectNextMode() {
+    /// A transient utility cursor can advance the cycle without changing the working mode.
+    /// Missing cursors fall back to the working mode; disabled working modes start at the first.
+    public mutating func selectNextMode(after id: UUID? = nil) {
         let enabled = enabledModes
         guard !enabled.isEmpty else { return }
-        let index = enabled.firstIndex(where: { $0.id == currentMode.id }) ?? -1
+        let index = id.flatMap { id in enabled.firstIndex(where: { $0.id == id }) }
+            ?? enabled.firstIndex(where: { $0.id == currentMode.id }) ?? -1
         currentModeID = enabled[(index + 1) % enabled.count].id
+    }
+
+    public mutating func introduceVolumeOutputMode() {
+        guard !volumeOutputModeIntroduced else { return }
+        if !modes.contains(where: { $0.kind == .volumeOutput }) {
+            modes.append(.volumeOutput)
+        }
+        volumeOutputModeIntroduced = true
     }
 
     // Tolerate missing keys so older/newer saved configs still load.
@@ -300,6 +328,8 @@ public struct DialConfig: Codable, Equatable {
         doubleClickInterval = (try? c.decode(Double.self, forKey: .doubleClickInterval)) ?? d.doubleClickInterval
         longPressDuration = (try? c.decode(Double.self, forKey: .longPressDuration)) ?? d.longPressDuration
         fastWake = (try? c.decode(Bool.self, forKey: .fastWake)) ?? d.fastWake
+        audioOutput = (try? c.decode(AudioOutputPreferences.self, forKey: .audioOutput)) ?? d.audioOutput
+        volumeOutputModeIntroduced = (try? c.decode(Bool.self, forKey: .volumeOutputModeIntroduced)) ?? false
     }
 }
 

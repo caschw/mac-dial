@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let settings = SettingsStore()
     let device = DialDevice()
     let status = AppStatus()
+    let audio = AudioOutputService()
 
     private var controller: DialController!
     private var statusBar: StatusBarController!
@@ -16,9 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let scheduler = MainRunLoopScheduler()
-        controller = DialController(device: device, settings: settings, actions: ActionEngine(scheduler: scheduler),
+        controller = DialController(device: device, settings: settings, actions: ActionEngine(scheduler: scheduler, audio: audio),
                                     radial: RadialMenuController(), hud: HUDController(),
-                                    waker: BluetoothWaker(), scheduler: scheduler)
+                                    waker: BluetoothWaker(), scheduler: scheduler, audio: audio)
+        audio.start()
         statusBar = StatusBarController(settings: settings, device: device)
         statusBar.onOpenSettings = { [weak self] in self?.showSettings() }
         statusBar.onShowRadialMenu = { [weak self] in self?.controller.showRadialMenu() }
@@ -71,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         controller.actions.shutdown()
         controller.waker.isEnabled = false
         device.stop()
+        audio.stop()
     }
 
     // MARK: - Status
@@ -102,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func showSettings() {
         if settingsWindow == nil {
             let view = SettingsView(store: settings, status: status,
+                                    audio: audio,
                                     setLaunchAtLogin: { [weak self] in self?.setLaunchAtLogin($0) })
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = "Mac Dial"

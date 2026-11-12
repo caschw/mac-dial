@@ -2,6 +2,101 @@ import XCTest
 import MacDialKit
 
 final class DialConfigStorageTests: XCTestCase {
+    func testAudioPreferencesAndModeMigrationRemainWritableAndPersistent() throws {
+        try withDefaults { defaults in
+            var original = DialConfig()
+            original.modes.removeAll { $0.kind != nil }
+            original.currentModeID = original.modes[1].id
+            var document = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+            document.removeValue(forKey: "volumeOutputModeIntroduced")
+            document.removeValue(forKey: "audioOutput")
+            defaults.set(try JSONSerialization.data(withJSONObject: document), forKey: DialConfigStorage.key)
+            let storage = DialConfigStorage(defaults: defaults)
+            XCTAssertNil(storage.recovery)
+            var migrated = storage.loadedConfig
+            migrated.introduceVolumeOutputMode()
+            migrated.audioOutput.selectedUID = "remembered"
+            migrated.audioOutput.disable(AudioOutput(uid: "offline", name: "Disconnected output", supportsVolume: true))
+            try storage.save(migrated)
+            let reloaded = DialConfigStorage(defaults: defaults)
+            XCTAssertNil(reloaded.recovery)
+            XCTAssertEqual(reloaded.loadedConfig, migrated)
+            XCTAssertEqual(Array(migrated.modes.dropLast()), original.modes)
+            XCTAssertEqual(migrated.currentModeID, original.currentModeID)
+        }
+    }
+
+    func testMalformedAudioFieldsAndUnknownUtilityKindsProtectOriginal() throws {
+        try withDefaults { defaults in
+            let encoded = try JSONEncoder().encode(DialConfig())
+            let base = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+            var documents: [[String: Any]] = []
+            for invalid: Any in [
+                ["selectedUID": ""],
+                ["selectedUID": 42],
+                ["disabled": [["uid": "", "name": "Output"]]],
+                ["disabled": [["uid": "same", "name": "A"], ["uid": "same", "name": "B"]]],
+                ["disabled": [["uid": "valid", "name": "Output", "futureSetting": true]]],
+                ["futureAudioSetting": true],
+                NSNull(),
+                "invalid"
+            ] {
+                var document = base
+                document["audioOutput"] = invalid
+                documents.append(document)
+            }
+            var invalidMarker = base
+            invalidMarker["volumeOutputModeIntroduced"] = "invalid"
+            documents.append(invalidMarker)
+            var futureKind = base
+            var modes = try XCTUnwrap(futureKind["modes"] as? [[String: Any]])
+            modes[0]["kind"] = "future"
+            futureKind["modes"] = modes
+            documents.append(futureKind)
+            for document in documents {
+                let data = try JSONSerialization.data(withJSONObject: document)
+                defaults.set(data, forKey: DialConfigStorage.key)
+                let storage = DialConfigStorage(defaults: defaults)
+                XCTAssertNotNil(storage.recovery)
+                var config = storage.loadedConfig
+                config.introduceVolumeOutputMode()
+                XCTAssertThrowsError(try storage.save(config))
+                XCTAssertEqual(defaults.data(forKey: DialConfigStorage.key), data)
+            }
+        }
+    }
+
+    func testExplicitNullAudioSelectionAndOrdinaryModeKindRemainKnown() throws {
+        try withDefaults { defaults in
+            var document = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(DialConfig())) as? [String: Any])
+            document["audioOutput"] = ["selectedUID": NSNull(), "disabled": []]
+            var modes = try XCTUnwrap(document["modes"] as? [[String: Any]])
+            modes[0]["kind"] = NSNull()
+            document["modes"] = modes
+            defaults.set(try JSONSerialization.data(withJSONObject: document), forKey: DialConfigStorage.key)
+            XCTAssertNil(DialConfigStorage(defaults: defaults).recovery)
+        }
+    }
+
+    func testModeIntroductionCannotOverwriteConcurrentAudioPreferences() throws {
+        try withDefaults { defaults in
+            var legacy = DialConfig()
+            legacy.volumeOutputModeIntroduced = false
+            legacy.modes.removeAll { $0.kind != nil }
+            defaults.set(try JSONEncoder().encode(legacy), forKey: DialConfigStorage.key)
+            let storage = DialConfigStorage(defaults: defaults)
+            var migrated = storage.loadedConfig
+            migrated.introduceVolumeOutputMode()
+            var external = legacy
+            external.audioOutput.selectedUID = "changed-elsewhere"
+            let newerData = try JSONEncoder().encode(external)
+            defaults.set(newerData, forKey: DialConfigStorage.key)
+            XCTAssertThrowsError(try storage.save(migrated))
+            XCTAssertNotNil(storage.recovery)
+            XCTAssertEqual(defaults.data(forKey: DialConfigStorage.key), newerData)
+        }
+    }
+
     func testMissingAndLegacySettingsRemainWritable() throws {
         try withDefaults { defaults in
             XCTAssertNil(DialConfigStorage(defaults: defaults).recovery)

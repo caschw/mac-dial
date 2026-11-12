@@ -14,6 +14,7 @@ final class AppStatus: ObservableObject {
 struct SettingsView: View {
     @ObservedObject var store: SettingsStore
     @ObservedObject var status: AppStatus
+    @ObservedObject var audio: AudioOutputService
     var setLaunchAtLogin: (Bool) -> Void
 
     enum Page: Hashable { case general, mode(UUID) }
@@ -44,7 +45,19 @@ struct SettingsView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 2) {
-                    Button { addMode() } label: { Image(systemName: "plus").frame(width: 22, height: 22) }
+                    Menu {
+                        Button("New Mode") { addMode() }
+                        Button("Volume Output") {
+                            let mode = DialMode.volumeOutput
+                            store.config.modes.append(mode)
+                            page = .mode(mode.id)
+                        }
+                        .disabled(store.config.modes.contains(where: { $0.kind == .volumeOutput }))
+                    } label: {
+                        Image(systemName: "plus").frame(width: 22, height: 22)
+                    }
+                    .menuIndicator(.hidden)
+                    .accessibilityLabel("Add mode")
                     Button { deleteSelectedMode() } label: { Image(systemName: "minus").frame(width: 22, height: 22) }
                         .disabled(!canDelete)
                     Spacer()
@@ -57,7 +70,7 @@ struct SettingsView: View {
             switch page {
             case .mode(let id):
                 if let binding = modeBinding(id) {
-                    ModeEditor(mode: binding, store: store).id(id)
+                    ModeEditor(mode: binding, store: store, audio: audio).id(id)
                 }
             default:
                 GeneralSettings(store: store, status: status, setLaunchAtLogin: setLaunchAtLogin)
@@ -102,8 +115,8 @@ struct SettingsView: View {
     }
 
     private var canDelete: Bool {
-        if case .mode = page { return store.config.modes.count > 1 }
-        return false
+        guard case .mode(let id) = page, let mode = store.config.modes.first(where: { $0.id == id }) else { return false }
+        return mode.kind != nil || store.config.modes.filter { $0.kind == nil }.count > 1
     }
 
     private func modeBinding(_ id: UUID) -> Binding<DialMode>? {
@@ -126,9 +139,11 @@ struct SettingsView: View {
     }
 
     private func deleteSelectedMode() {
-        guard case .mode(let id) = page, store.config.modes.count > 1 else { return }
+        guard case .mode(let id) = page, canDelete else { return }
         store.config.modes.removeAll { $0.id == id }
-        if store.config.currentModeID == id { store.config.currentModeID = store.config.modes.first?.id }
+        if store.config.currentModeID == id {
+            store.config.currentModeID = store.config.modes.first(where: { $0.kind == nil })?.id
+        }
         page = .general
     }
 }
@@ -329,6 +344,7 @@ private func openURL(_ string: String) {
 struct ModeEditor: View {
     @Binding var mode: DialMode
     @ObservedObject var store: SettingsStore
+    @ObservedObject var audio: AudioOutputService
 
     var body: some View {
         Form {
@@ -345,37 +361,122 @@ struct ModeEditor: View {
                         Label("Active mode", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.secondary)
                     } else {
-                        Button("Use This Mode") { store.selectMode(mode.id) }
+                        Button(mode.kind == .volumeOutput ? "Choose Output…" : "Use This Mode") { store.selectMode(mode.id) }
                     }
                 }
             }
 
-            Section("Turn") {
-                RotationEditor(binding: $mode.rotate)
-            }
-            Section {
-                RotationEditor(binding: $mode.pressedRotate)
-            } header: {
-                Text("Turn while pressed")
-            } footer: {
-                Text("Hold the dial down and turn it for a second action.")
-            }
-            Section("Press") {
-                ClickEditor(title: "Click", binding: $mode.click)
-                ClickEditor(title: "Double-click", binding: $mode.doubleClick)
-                ClickEditor(title: "Press & hold", binding: $mode.longPress)
-                if mode.click.action.isMouseButton && mode.doubleClick.action == .none
-                    && mode.longPress.action == .none && mode.pressedRotate.action == .none {
-                    Text("Click works as a real mouse button here, so you can hold the dial to drag.")
-                        .font(.callout).foregroundStyle(.secondary)
-                } else if !store.config.modes.contains(where: { $0.longPress.action == .radialMenu || $0.click.action == .radialMenu || $0.doubleClick.action == .radialMenu }) {
-                    Text("Tip: no mode opens the dial menu. You can still switch modes from the menu bar.")
-                        .font(.callout).foregroundStyle(.secondary)
+            if mode.kind == .volumeOutput {
+                AudioOutputSettings(store: store, audio: audio)
+            } else {
+                Section("Turn") {
+                    RotationEditor(binding: $mode.rotate)
+                }
+                Section {
+                    RotationEditor(binding: $mode.pressedRotate)
+                } header: {
+                    Text("Turn while pressed")
+                } footer: {
+                    Text("Hold the dial down and turn it for a second action.")
+                }
+                Section("Press") {
+                    ClickEditor(title: "Click", binding: $mode.click)
+                    ClickEditor(title: "Double-click", binding: $mode.doubleClick)
+                    ClickEditor(title: "Press & hold", binding: $mode.longPress)
+                    if mode.click.action.isMouseButton && mode.doubleClick.action == .none
+                        && mode.longPress.action == .none && mode.pressedRotate.action == .none {
+                        Text("Click works as a real mouse button here, so you can hold the dial to drag.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    } else if !store.config.modes.contains(where: {
+                        $0.kind == nil && ($0.longPress.action == .radialMenu || $0.click.action == .radialMenu || $0.doubleClick.action == .radialMenu)
+                    }) {
+                        Text("Tip: no mode opens the dial menu. You can still switch modes from the menu bar.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
                 }
             }
         }
         .formStyle(.grouped)
         .navigationTitle(mode.name.isEmpty ? "Mode" : mode.name)
+    }
+}
+
+struct AudioOutputSettings: View {
+    @ObservedObject var store: SettingsStore
+    @ObservedObject var audio: AudioOutputService
+
+    private var targetName: String {
+        let uid = store.config.audioOutput.effectiveUID(outputs: audio.outputs, defaultUID: audio.defaultUID)
+        return audio.outputs.first(where: { $0.uid == uid })?.name ?? "Unavailable"
+    }
+
+    var body: some View {
+        Section {
+            Text("Choose which output Mac Dial's Volume actions control. This does not change where macOS or other apps play audio.")
+                .foregroundStyle(.secondary)
+            LabeledContent("Current volume output", value: targetName)
+            if let uid = store.config.audioOutput.selectedUID,
+               !audio.outputs.contains(where: { $0.uid == uid }) {
+                Text("Your chosen output is disconnected. Volume temporarily uses the macOS output and will return to your chosen output when it reconnects.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            if store.config.audioOutput.selectedUID != nil {
+                Button("Follow macOS Output") { store.config.audioOutput.selectedUID = nil }
+            }
+            if let error = audio.error {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.secondary)
+                Button("Retry Discovery") { audio.refresh() }
+            }
+        }
+        Section("Available Outputs") {
+            Label("System default", systemImage: "speaker")
+            Text("Always available on the dial; follows the macOS sound output.")
+                .font(.callout).foregroundStyle(.secondary)
+            if audio.outputs.isEmpty {
+                Text("No sound outputs are currently available.").foregroundStyle(.secondary)
+            }
+            ForEach(audio.outputs) { output in
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Label(output.name, systemImage: output.connection.symbol)
+                        if !output.supportsVolume {
+                            Text("Software volume control unavailable; not shown on the dial.")
+                                .font(.callout).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    if store.config.audioOutput.isDisabled(output.uid) {
+                        Text("Hidden").foregroundStyle(.secondary)
+                    } else {
+                        Button("Disable") { store.config.audioOutput.disable(output) }
+                            .accessibilityLabel("Hide \(output.name) from the dial")
+                    }
+                }
+            }
+        }
+        Section {
+            if store.config.audioOutput.disabled.isEmpty {
+                Text("No disabled outputs.").foregroundStyle(.secondary)
+            }
+            ForEach(store.config.audioOutput.disabled) { output in
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(audio.outputs.first(where: { $0.uid == output.uid })?.name ?? output.name)
+                        if !audio.outputs.contains(where: { $0.uid == output.uid }) {
+                            Text("Disconnected").font(.callout).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button("Enable") { store.config.audioOutput.enable(output.uid) }
+                        .accessibilityLabel("Show \(output.name) on the dial when supported")
+                }
+            }
+        } header: {
+            Text("Disabled Outputs")
+        } footer: {
+            Text("Disable only hides an output from the dial. Disconnected outputs stay here until you enable them.")
+        }
     }
 }
 

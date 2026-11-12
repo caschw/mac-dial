@@ -131,6 +131,7 @@ final class ActionEngine: DialActions {
 
     private let rotation = RotationInterpreter()
     private let scheduler: GestureScheduler
+    private let audio: AudioOutputService
     private lazy var rotationOutput = RotationEffectQueue(
         scheduleNext: { work in DispatchQueue.main.async(execute: work) },
         perform: { [weak self] binding, effect in self?.performRotation(effect, binding: binding) })
@@ -145,8 +146,9 @@ final class ActionEngine: DialActions {
             InputSynth.postKeyState(InputSynth.Key.tab, down: false, flags: flags)
         })
 
-    init(scheduler: GestureScheduler) {
+    init(scheduler: GestureScheduler, audio: AudioOutputService) {
         self.scheduler = scheduler
+        self.audio = audio
     }
 
     // MARK: Rotation
@@ -166,6 +168,10 @@ final class ActionEngine: DialActions {
         case let .scroll(vertical, horizontal):
             InputSynth.scroll(vertical: vertical, horizontal: horizontal)
         case let .auxiliary(action, increasing, repeatCount):
+            if action == .volume, let settings,
+               audio.adjustVolume(preferences: settings.config.audioOutput, increasing: increasing, repeatCount: repeatCount) {
+                return
+            }
             let key: InputSynth.AuxKey = action == .volume
                 ? (increasing ? .soundUp : .soundDown)
                 : (increasing ? .brightnessUp : .brightnessDown)
