@@ -186,6 +186,8 @@ public enum DialModeKind: String, Codable {
 }
 
 public struct DialMode: Codable, Equatable, Identifiable {
+    public static let scrollIcon = "scrollable-list"
+
     public var id = UUID()
     public var name: String
     public var icon: String
@@ -214,7 +216,7 @@ public struct DialMode: Codable, Equatable, Identifiable {
     }
 
     public static let iconChoices = [
-        "scroll", "speaker.wave.2.fill", "speaker.wave.2.circle", "sun.max.fill", "rectangle.split.3x1", "plus.magnifyingglass",
+        scrollIcon, "speaker.wave.2.fill", "speaker.wave.2.circle", "sun.max.fill", "rectangle.split.3x1", "plus.magnifyingglass",
         "arrow.uturn.backward", "music.note", "square.on.square", "keyboard", "arrow.left.arrow.right",
         "dial.medium.fill", "paintbrush.pointed.fill", "timeline.selection", "film", "photo",
         "pencil.tip", "textformat.size", "slider.horizontal.3", "gamecontroller.fill", "star.fill",
@@ -228,7 +230,7 @@ public struct DialMode: Codable, Equatable, Identifiable {
 
     public static var defaults: [DialMode] {
         [
-            DialMode(name: "Scroll", icon: "scroll",
+            DialMode(name: "Scroll", icon: scrollIcon,
                      rotate: RotationBinding(.scrollVertical),
                      pressedRotate: RotationBinding(.scrollHorizontal),
                      click: ClickBinding(.leftClick),
@@ -316,7 +318,13 @@ public struct DialConfig: Codable, Equatable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = DialConfig()
-        modes = (try? c.decode([DialMode].self, forKey: .modes)) ?? d.modes
+        modes = ((try? c.decode([DialMode].self, forKey: .modes)) ?? d.modes).map { mode in
+            var mode = mode
+            if mode.icon == "scroll" {
+                mode.icon = DialMode.scrollIcon
+            }
+            return mode
+        }
         currentModeID = try? c.decode(UUID.self, forKey: .currentModeID)
         stepsPerRevolution = min(max((try? c.decode(Int.self, forKey: .stepsPerRevolution)) ?? d.stepsPerRevolution,
                                      Self.ticksPerTurnRange.lowerBound), Self.ticksPerTurnRange.upperBound)

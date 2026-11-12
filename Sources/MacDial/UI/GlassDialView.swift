@@ -339,9 +339,10 @@ private struct SlotIcon: View {
     let size: CGFloat
 
     var body: some View {
-        Image(systemName: slot.symbol)
+        MacDialIconView(name: slot.symbol,
+                        primary: Color.primary.opacity(isSelected ? 1 : 0.82),
+                        secondary: Color.accentColor.opacity(isSelected ? 1 : 0.82))
             .font(.system(size: 17, weight: isSelected ? .semibold : .regular))
-            .foregroundStyle(Color.primary.opacity(isSelected ? 1 : 0.82))
             .shadow(color: Color(nsColor: .windowBackgroundColor).opacity(1.0), radius: 4)
             .frame(width: size, height: size)
             .overlay(alignment: .bottomTrailing) {
@@ -453,7 +454,7 @@ private extension Array {
 #if DEBUG
 private enum GlassDialFixtures {
     static let root = [
-        GlassDialSlot(id: "scroll", title: "Scroll", symbol: "scroll", kind: .leaf),
+        GlassDialSlot(id: "scroll", title: "Scroll", symbol: MacDialIcon.scrollableList, kind: .leaf),
         GlassDialSlot(id: "media", title: "Media", symbol: "play.circle", kind: .group),
         GlassDialSlot(id: "zoom", title: "Zoom", symbol: "plus.magnifyingglass", kind: .leaf),
         GlassDialSlot(id: "brightness", title: "Brightness", symbol: "sun.max", kind: .leaf),

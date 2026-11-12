@@ -173,9 +173,10 @@ struct HUDView: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            Image(systemName: model.icon)
+            MacDialIconView(name: model.icon,
+                            primary: .secondary,
+                            secondary: .secondary)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
             Text(model.title)
                 .font(.system(size: 12.5, weight: .medium))
                 .lineLimit(2)

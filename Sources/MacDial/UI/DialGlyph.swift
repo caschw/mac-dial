@@ -76,7 +76,7 @@ enum DialGlyph {
 
     static func menuBarImage(_ style: MenuBarGlyph, modeIcon: String) -> NSImage? {
         if style == .modeIcon {
-            let image = NSImage(systemSymbolName: modeIcon, accessibilityDescription: nil)
+            let image = MacDialIcon.image(named: modeIcon)
                 ?? NSImage(systemSymbolName: "dial.medium.fill", accessibilityDescription: nil)
             image?.isTemplate = true
             return image?.withSymbolConfiguration(.init(pointSize: 14, weight: .medium))

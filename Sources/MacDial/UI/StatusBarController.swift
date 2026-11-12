@@ -49,7 +49,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             let item = NSMenuItem(title: mode.name, action: #selector(selectMode(_:)), keyEquivalent: index < 9 ? "\(index + 1)" : "")
             item.target = self
             item.representedObject = mode.id
-            item.image = NSImage(systemSymbolName: mode.icon, accessibilityDescription: nil)
+            item.image = MacDialIcon.image(named: mode.icon)
             item.state = mode.id == current ? .on : .off
             menu.addItem(item)
         }
