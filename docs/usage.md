@@ -15,9 +15,9 @@ For project lineage, licensing, and development documentation, see the [README](
   - **Turn** action
   - **Turn while pressed** action (hold the dial down and turn it)
   - **Click**, **double-click**, and **press & hold** actions
-- **Radial menu.** Press and hold the dial to open it, turn to highlight a mode, and click to choose it.
+- **Radial menu.** Press and hold the dial to open it, turn to highlight a mode, and click to choose it. The menu is a translucent glass dial with a rotating selection wedge; the center shows the highlighted name and what a click will do.
 - **Haptic feedback**: ticks while turning, plus a buzz when you change modes or move through the menu.
-- **Liquid Glass** radial menu and HUD, in light and dark mode.
+- **Liquid Glass** radial menu and HUD, in light and dark mode. The menu respects Reduce Transparency, Reduce Motion, and Increase Contrast.
 - **Modern settings window** built with SwiftUI.
 - **Dial menu bar icon** in four styles (Dial, Outline, Solid, Color), or the current mode's icon. Pick one in Settings › Appearance.
 - Adjustable sensitivity, gesture timing, an on-screen label when you switch modes, and an option to open at login.
@@ -58,6 +58,19 @@ If a mode only uses a mouse click, with no double-click, press & hold, or turn-w
 | Brightness *(off by default)* | Brightness | – | – | – |
 
 In every mode, **press & hold** opens the radial menu. Everything can be changed in Settings.
+
+### Radial menu
+
+Turn to move the highlight and click to choose. The menu closes after six
+seconds of inactivity, or when the enabled modes or sensitivity change while it
+is open.
+
+The menu supports nested items: clicking an item marked with a chevron opens an
+outer glass arc beside it with that item's options. The arc starts with a
+**Back** item; clicking it returns to the previous level. Long submenus show up
+to seven options at once, with dots at either end when more are available.
+Today the menu lists your enabled modes as a single level, so submenus appear
+only when nested items are provided.
 
 ---
 
