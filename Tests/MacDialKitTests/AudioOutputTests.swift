@@ -84,10 +84,16 @@ final class AudioOutputTests: XCTestCase {
         XCTAssertEqual(try AudioVolume.adjusted([0.5, 0], increasing: true, repeatCount: Int.max), [1, 0])
         XCTAssertEqual(try AudioVolume.adjusted([0.5], increasing: false, repeatCount: Int.max), [0])
         for levels: [Float] in [[], [.nan], [.infinity], [-.infinity], [-Float.leastNonzeroMagnitude], [Float(1).nextUp]] {
-            XCTAssertThrowsError(try AudioVolume.adjusted(levels, increasing: true, repeatCount: 1))
+            XCTAssertThrowsError(try AudioVolume.adjusted(levels, increasing: true, repeatCount: 1)) {
+                XCTAssertEqual($0 as? AudioVolumeError, .invalidScalars)
+                XCTAssertEqual($0.localizedDescription, "The sound output reported invalid volume levels.")
+            }
         }
         for count in [0, -1, Int.min] {
-            XCTAssertThrowsError(try AudioVolume.adjusted([0.5], increasing: true, repeatCount: count))
+            XCTAssertThrowsError(try AudioVolume.adjusted([0.5], increasing: true, repeatCount: count)) {
+                XCTAssertEqual($0 as? AudioVolumeError, .invalidRepeatCount)
+                XCTAssertEqual($0.localizedDescription, "The requested volume step count is invalid.")
+            }
         }
     }
 
@@ -146,6 +152,76 @@ final class AudioOutputTests: XCTestCase {
         candidate = config
         candidate.selectNextMode(after: utility.id)
         XCTAssertEqual(candidate.currentModeID, config.enabledModes.first?.id)
+    }
+
+    func testOrdinaryModesRemainModeLeavesBesideTheOutputGroup() {
+        let ordinary = DialConfig().modes.first { $0.kind == nil }!
+        let utility = DialMode.volumeOutput
+        let items = AudioOutputMenu.items(modes: [ordinary, utility], outputs: [speakers],
+                                          preferences: AudioOutputPreferences())
+        XCTAssertEqual(items.map(\.id), [ordinary.id.uuidString, utility.id.uuidString])
+        XCTAssertEqual(items[0].title, ordinary.name)
+        XCTAssertEqual(items[0].symbol, ordinary.icon)
+        if case .leaf(.mode(let mode)) = items[0].content {
+            XCTAssertEqual(mode, ordinary)
+        } else { XCTFail("Ordinary modes must stay selectable mode leaves") }
+        if case .group(let children) = items[1].content {
+            XCTAssertEqual(children.count, 2)
+        } else { XCTFail("Volume Output must expand into outputs") }
+    }
+
+    func testArcEntryHighlightsTheRememberedTargetOrKeepsTheDefaultSelection() {
+        let mode = DialMode.volumeOutput
+        let group = AudioOutputMenu.items(modes: [mode], outputs: [speakers, headphones],
+                                          preferences: AudioOutputPreferences())[0]
+        guard case .group(let children) = group.content else { return XCTFail("Expected an output arc") }
+        XCTAssertEqual(AudioOutputMenu.preferredItemID(in: children, selectedUID: nil),
+                       "\(mode.id.uuidString).system-default")
+        XCTAssertEqual(AudioOutputMenu.preferredItemID(in: children, selectedUID: headphones.uid),
+                       "\(mode.id.uuidString).output.\(headphones.uid)")
+        XCTAssertNil(AudioOutputMenu.preferredItemID(in: children, selectedUID: "disconnected"))
+        XCTAssertNil(AudioOutputMenu.preferredItemID(in: children, selectedUID: ""))
+        XCTAssertNil(AudioOutputMenu.preferredItemID(in: [], selectedUID: nil))
+        XCTAssertNil(AudioOutputMenu.preferredItemID(in: [group], selectedUID: nil),
+                     "Mode-level items are never output targets")
+    }
+
+    func testConfirmationNamesTheChosenSoundOutput() {
+        let system = AudioOutputMenu.confirmation(for: nil)
+        XCTAssertEqual(system.symbol, "speaker")
+        XCTAssertEqual(system.title, "Sound output changed to System default")
+        let px8 = AudioOutput(uid: "EC-66-D1-C6-0A-10:output", name: "Carl's Px8", supportsVolume: true,
+                              connection: .bluetoothHeadphones)
+        let device = AudioOutputMenu.confirmation(for: px8)
+        XCTAssertEqual(device.symbol, "headphones")
+        XCTAssertEqual(device.title, "Sound output changed to Carl's Px8")
+    }
+
+    func testRequestedOutputModeJoinsTheMenuOnlyWhenItIsAHiddenVolumeOutput() {
+        var config = DialConfig()
+        let utilityIndex = config.modes.firstIndex { $0.kind == .volumeOutput }!
+        let utility = config.modes[utilityIndex]
+        let ordinaryHidden = config.modes.first { !$0.enabled && $0.kind == nil }!
+        XCTAssertEqual(AudioOutputMenu.modes(for: config, requestedOutputModeID: nil), config.enabledModes)
+        XCTAssertEqual(AudioOutputMenu.modes(for: config, requestedOutputModeID: utility.id), config.enabledModes,
+                       "An enabled utility is not duplicated")
+        config.modes[utilityIndex].enabled = false
+        XCTAssertEqual(AudioOutputMenu.modes(for: config, requestedOutputModeID: utility.id).last?.id, utility.id)
+        XCTAssertEqual(AudioOutputMenu.modes(for: config, requestedOutputModeID: ordinaryHidden.id), config.enabledModes)
+        XCTAssertEqual(AudioOutputMenu.modes(for: config, requestedOutputModeID: UUID()), config.enabledModes)
+    }
+
+    func testWorkingModeNeverResolvesToAUtility() throws {
+        var config = DialConfig()
+        let utility = config.modes.first { $0.kind == .volumeOutput }!
+        let firstOrdinary = config.modes.first { $0.kind == nil }!
+        config.currentModeID = utility.id
+        XCTAssertEqual(config.currentMode, firstOrdinary)
+        config = try JSONDecoder().decode(DialConfig.self, from: JSONEncoder().encode(config))
+        XCTAssertEqual(config.currentMode, firstOrdinary, "A saved utility cursor decodes to an operating mode")
+        config.modes = [utility]
+        XCTAssertNil(config.currentMode.kind)
+        XCTAssertEqual(config.currentMode.name, DialMode.defaults[0].name)
     }
 
     func testSystemDefaultAndDeviceConfirmationHaveDistinctTypedPayloads() throws {

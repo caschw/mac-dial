@@ -101,12 +101,7 @@ final class DialController {
     }
 
     private func menuModes(_ config: DialConfig) -> [DialMode] {
-        var modes = config.enabledModes
-        if let id = requestedOutputModeID, !modes.contains(where: { $0.id == id }),
-           let mode = config.modes.first(where: { $0.id == id && $0.kind == .volumeOutput }) {
-            modes.append(mode)
-        }
-        return modes
+        AudioOutputMenu.modes(for: config, requestedOutputModeID: requestedOutputModeID)
     }
 
     private func select(_ choice: DialMenuChoice) -> Bool {
@@ -121,7 +116,8 @@ final class DialController {
             settings.config.audioOutput.selectedUID = nil
             gestures.resetGesture()
             if settings.config.showHUD {
-                hud.show(icon: "speaker", title: "Volume output changed to System default")
+                let confirmation = AudioOutputMenu.confirmation(for: nil)
+                hud.show(icon: confirmation.symbol, title: confirmation.title)
             }
             return true
         case .audioOutput(let uid):
@@ -130,7 +126,8 @@ final class DialController {
                 settings.config.audioOutput.selectedUID = output.uid
                 gestures.resetGesture()
                 if settings.config.showHUD {
-                    hud.show(icon: output.connection.symbol, title: "Volume output changed to \(output.name)")
+                    let confirmation = AudioOutputMenu.confirmation(for: output)
+                    hud.show(icon: confirmation.symbol, title: confirmation.title)
                 }
                 return true
             } catch {

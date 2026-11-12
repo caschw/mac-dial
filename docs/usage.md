@@ -81,7 +81,7 @@ their reported device class. Unclassified Bluetooth devices retain
 System default uses `speaker`. Other or unknown connections retain the speaker
 icon. Device discovery stays live while the app and
 menu are open. An output selection closes the menu, shows
-**Volume output changed to [device name]** (when on-screen labels are enabled),
+**Sound output changed to [device name]** (when on-screen labels are enabled),
 and silently returns to your previous operating mode. Back, timeout, and
 dismissal do not change the volume target.
 

@@ -174,6 +174,32 @@ public enum AudioOutputMenu {
             return .group(id: mode.id.uuidString, title: mode.name, symbol: mode.icon, children: children)
         }
     }
+
+    /// Enabled modes, plus a requested Volume Output mode even when it is hidden from cycling.
+    public static func modes(for config: DialConfig, requestedOutputModeID: UUID?) -> [DialMode] {
+        var modes = config.enabledModes
+        if let id = requestedOutputModeID, !modes.contains(where: { $0.id == id }),
+           let mode = config.modes.first(where: { $0.id == id && $0.kind == .volumeOutput }) {
+            modes.append(mode)
+        }
+        return modes
+    }
+
+    /// The arc item for the remembered target; System default when no device is chosen.
+    /// Nil when the chosen device is hidden or absent, so the arc keeps its default selection.
+    public static func preferredItemID(in items: [RadialMenuItem<DialMenuChoice>], selectedUID: String?) -> String? {
+        items.first(where: {
+            if case .leaf(.audioOutput(let uid)) = $0.content { return uid == selectedUID }
+            if case .leaf(.systemDefaultAudioOutput) = $0.content { return selectedUID == nil }
+            return false
+        })?.id
+    }
+
+    /// HUD capsule for a confirmed choice; nil output means System default.
+    public static func confirmation(for output: AudioOutput?) -> (symbol: String, title: String) {
+        guard let output else { return ("speaker", "Sound output changed to System default") }
+        return (output.connection.symbol, "Sound output changed to \(output.name)")
+    }
 }
 
 /// An opaque native audio object handle; zero is the unknown object.
