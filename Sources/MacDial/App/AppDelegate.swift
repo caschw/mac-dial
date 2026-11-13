@@ -134,9 +134,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowShouldClose(_ window: NSWindow) -> Bool {
+        guard window === settingsWindow else { return true }
+
         statusTimer?.invalidate()
         statusTimer = nil
-        NSApp.setActivationPolicy(.accessory)
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self, let window else { return }
+            window.orderOut(nil)
+            NSApp.setActivationPolicy(.accessory)
+        }
+        return false
     }
 }
