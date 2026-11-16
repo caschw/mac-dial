@@ -108,7 +108,7 @@ public struct AudioOutputPreferences: Codable, Equatable {
         }
     }
 
-    /// Hiding a device affects only menus, not the remembered volume target.
+    /// Hiding a device affects only menus, not the remembered volume/mute target.
     public func effectiveUID(outputs: [AudioOutput], defaultUID: String?) -> String? {
         if let selectedUID, outputs.contains(where: { $0.uid == selectedUID }) {
             return selectedUID
@@ -223,6 +223,9 @@ public protocol AudioHardware {
     func isVolumeWritable(_ device: AudioDeviceHandle, element: UInt32) throws -> Bool
     func volume(_ device: AudioDeviceHandle, element: UInt32) throws -> Float
     func setVolume(_ device: AudioDeviceHandle, element: UInt32, to value: Float) throws
+    func isMuteWritable(_ device: AudioDeviceHandle, element: UInt32) throws -> Bool
+    func isMuted(_ device: AudioDeviceHandle, element: UInt32) throws -> Bool
+    func setMuted(_ device: AudioDeviceHandle, element: UInt32, to value: Bool) throws
 }
 
 public struct AudioOutputError: LocalizedError, Equatable {
@@ -249,7 +252,7 @@ public struct AudioOutputSnapshot: Equatable {
     public var discoveryError: String? { failures.isEmpty ? nil : failures.joined(separator: "\n") }
 }
 
-/// Platform-independent discovery, selection, and selected-device volume logic.
+/// Platform-independent discovery, selection, and selected-device volume/mute logic.
 public struct AudioOutputCore {
     public static let mainElement: UInt32 = 0
     public let hardware: AudioHardware
@@ -340,6 +343,34 @@ public struct AudioOutputCore {
         return true
     }
 
+    /// Uses the same target and disconnection fallback as volume. An available
+    /// target without writable mute controls throws instead of muting another device.
+    public func toggleMute(preferences: AudioOutputPreferences) throws -> Bool {
+        guard let uid = preferences.selectedUID else { return false }
+        guard let device = try resolve(uid) else { return false }
+        let elements = try controlElements(device) { try hardware.isMuteWritable(device, element: $0) }
+        guard !elements.isEmpty else {
+            throw AudioOutputError("The chosen volume output does not support software mute.")
+        }
+        let old = try elements.map { try hardware.isMuted(device, element: $0) }
+        let next = !old.allSatisfy { $0 }
+        var written = 0
+        do {
+            for element in elements {
+                try hardware.setMuted(device, element: element, to: next)
+                written += 1
+            }
+        } catch {
+            var messages = [error.localizedDescription]
+            for index in 0..<written {
+                do { try hardware.setMuted(device, element: elements[index], to: old[index]) }
+                catch { messages.append("Restore failed: \(error.localizedDescription)") }
+            }
+            throw AudioOutputError(messages.joined(separator: "\n"))
+        }
+        return true
+    }
+
     /// Resolves the chosen identity directly, so an unrelated broken device cannot block volume.
     public func resolve(_ uid: String) throws -> AudioDeviceHandle? {
         guard !uid.isEmpty else { throw AudioOutputError("The selected sound output has an invalid identity.") }
@@ -354,12 +385,17 @@ public struct AudioOutputCore {
 
     /// The main control if writable; otherwise every channel, so balance is never shifted.
     public func volumeElements(_ device: AudioDeviceHandle) throws -> [UInt32] {
-        if try hardware.isVolumeWritable(device, element: Self.mainElement) { return [Self.mainElement] }
+        try controlElements(device) { try hardware.isVolumeWritable(device, element: $0) }
+    }
+
+    private func controlElements(_ device: AudioDeviceHandle,
+                                 isWritable: (UInt32) throws -> Bool) throws -> [UInt32] {
+        if try isWritable(Self.mainElement) { return [Self.mainElement] }
         let count = try channelCount(device)
         guard count > 0 else { return [] }
         var elements: [UInt32] = []
         for channel in 1...count {
-            guard try hardware.isVolumeWritable(device, element: channel) else { return [] }
+            guard try isWritable(channel) else { return [] }
             elements.append(channel)
         }
         return elements

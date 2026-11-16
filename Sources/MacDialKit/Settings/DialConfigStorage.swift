@@ -17,7 +17,7 @@ public final class DialConfigStorage {
             case .protectedSettings:
                 return "The original saved settings must be explicitly replaced before changes can be saved."
             case .changedSettings:
-                return "The saved settings changed outside this Mac Dial instance. Review the latest original before replacing it."
+                return "The saved settings changed outside this instance of the app. Review the latest original before replacing it."
             }
         }
     }
@@ -56,7 +56,7 @@ public final class DialConfigStorage {
         } catch {
             loadedConfig = DialConfig()
             recovery = Recovery(reason: "The saved settings could not be read: \(Self.describe(error, data: data))",
-                                originalData: data, suggestedFileName: "MacDial-original-settings.json")
+                                originalData: data, suggestedFileName: "original-settings.json")
             return
         }
 
@@ -66,13 +66,13 @@ public final class DialConfigStorage {
             let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(loadedConfig))
             if let path = Self.unknownKey(in: original, matching: encoded, path: "") {
                 recovery = Recovery(reason: "The saved settings contain an unrecognized field: \(path).",
-                                    originalData: data, suggestedFileName: "MacDial-original-settings.json")
+                                    originalData: data, suggestedFileName: "original-settings.json")
             } else {
                 recovery = nil
             }
         } catch {
             recovery = Recovery(reason: "The saved settings contain an incompatible value: \(Self.describe(error, data: data))",
-                                originalData: data, suggestedFileName: "MacDial-original-settings.json")
+                                originalData: data, suggestedFileName: "original-settings.json")
         }
     }
 
@@ -98,7 +98,7 @@ public final class DialConfigStorage {
         let current = Self.snapshot(stored)
         guard let observedSnapshot, let current, observedSnapshot == current else {
             observedSnapshot = current
-            recovery = Self.recovery(for: stored, reason: "The saved settings changed outside this Mac Dial instance.")
+            recovery = Self.recovery(for: stored, reason: "The saved settings changed outside this instance of the app.")
             throw SaveError.changedSettings
         }
     }
@@ -116,7 +116,7 @@ public final class DialConfigStorage {
 
     private static func recovery(for stored: Any?, reason: String) -> Recovery {
         if let data = stored as? Data {
-            return Recovery(reason: reason, originalData: data, suggestedFileName: "MacDial-original-settings.json")
+            return Recovery(reason: reason, originalData: data, suggestedFileName: "original-settings.json")
         }
         let backup: Data?
         if let stored {
@@ -129,7 +129,7 @@ public final class DialConfigStorage {
         } else {
             backup = nil
         }
-        return Recovery(reason: reason, originalData: backup, suggestedFileName: "MacDial-original-settings.plist")
+        return Recovery(reason: reason, originalData: backup, suggestedFileName: "original-settings.plist")
     }
 
     private static func describe(_ error: Error, data: Data) -> String {

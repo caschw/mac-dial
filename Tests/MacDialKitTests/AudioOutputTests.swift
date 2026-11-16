@@ -489,6 +489,154 @@ final class AudioOutputTests: XCTestCase {
             XCTAssertTrue($0.localizedDescription.contains("Restore failed"))
         }
     }
+
+    func testMuteFollowsSelectedOutputWithoutChangingVolumeOrOtherDevices() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "spk", name: "Speakers", channels: [2], main: 0.75, mainMute: false)
+        hardware.add(2, uid: "usb", name: "USB", channels: [2], main: 0.25, mainMute: false)
+        hardware.defaultHandle = 1
+        let core = core(hardware)
+        var preferences = selecting("usb")
+        preferences.disable(AudioOutput(uid: "usb", name: "USB", supportsVolume: true))
+
+        XCTAssertTrue(try core.toggleMute(preferences: preferences), "Hiding a selected device does not change its target")
+        XCTAssertEqual(hardware.devices[2]?.mainMute, true)
+        XCTAssertEqual(hardware.devices[1]?.mainMute, false)
+        XCTAssertEqual(hardware.devices[2]?.main, 0.25)
+        XCTAssertTrue(try core.toggleMute(preferences: preferences))
+        XCTAssertEqual(hardware.devices[2]?.mainMute, false)
+
+        preferences.selectedUID = "spk"
+        XCTAssertTrue(try core.toggleMute(preferences: preferences))
+        XCTAssertEqual(hardware.devices[1]?.mainMute, true)
+        XCTAssertEqual(hardware.devices[2]?.mainMute, false)
+        XCTAssertEqual(hardware.muteWrites.map(\.device), [2, 2, 1])
+        XCTAssertEqual(hardware.devices[1]?.main, 0.75)
+        XCTAssertEqual(preferences.selectedUID, "spk")
+        XCTAssertTrue(hardware.writes.isEmpty)
+    }
+
+    func testMuteUsesSystemPathWithoutTargetOrWhileDisconnectedThenResumes() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "usb", name: "USB", channels: [2], main: 0.5, mainMute: false)
+        hardware.listFails = true
+        hardware.uidAliases["unknown-handle"] = 0
+        let core = core(hardware)
+        XCTAssertFalse(try core.toggleMute(preferences: selecting(nil)))
+        XCTAssertFalse(try core.toggleMute(preferences: selecting("absent")))
+        XCTAssertFalse(try core.toggleMute(preferences: selecting("unknown-handle")))
+        hardware.devices[1]?.alive = false
+        XCTAssertFalse(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertTrue(hardware.muteWrites.isEmpty)
+        hardware.devices[1]?.alive = true
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")),
+                      "Unrelated discovery failures must not block a directly resolved target")
+        XCTAssertEqual(hardware.devices[1]?.mainMute, true)
+    }
+
+    func testMutePrefersMainControlAndReadsLiveStateOnEveryActivation() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "usb", name: "USB", channels: [2], main: 0.5,
+                     mainMute: false, perChannelMute: [true, false])
+        hardware.failingMuteReadElement = 1
+        let core = core(hardware)
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.mainMute, true)
+        hardware.devices[1]?.mainMute = false
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.mainMute, true, "External mute changes are observed, not cached")
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.mainMute, false)
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [true, false])
+        XCTAssertEqual(hardware.muteWrites.map(\.element), [0, 0, 0])
+    }
+
+    func testMuteTogglesAllChannelsWithoutAffectingTheirVolumeBalance() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "usb", name: "USB", channels: [1, 1], perChannel: [0.25, 0.5],
+                     perChannelMute: [false, true])
+        let core = core(hardware)
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [true, true])
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [false, false])
+        XCTAssertEqual(hardware.devices[1]?.channels, [0.25, 0.5])
+        XCTAssertTrue(hardware.writes.isEmpty)
+        XCTAssertEqual(hardware.muteWrites.map(\.element), [1, 2, 1, 2])
+
+        hardware.add(2, uid: "mono", name: "Mono", channels: [1], perChannelMute: [true])
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("mono")))
+        XCTAssertEqual(hardware.devices[2]?.channelMute, [false])
+    }
+
+    func testMuteRejectsInvalidTargetsAndUnsupportedControlsWithoutWritingElsewhere() {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "spk", name: "Speakers", channels: [2], main: 0.5, mainMute: false)
+        hardware.add(2, uid: "no-mute", name: "No mute", channels: [2], main: 0.5)
+        hardware.add(3, uid: "partial", name: "Partial mute", channels: [2], main: 0.5,
+                     perChannelMute: [false, nil])
+        hardware.add(4, uid: "input-only", name: "Microphone", channels: [], mainMute: false)
+        hardware.add(5, uid: "overflow", name: "Invalid", channels: [UInt32.max, 1], mainMute: false)
+        hardware.defaultHandle = 1
+        hardware.uidAliases["mismatched"] = 1
+        let core = core(hardware)
+        for uid in ["", "no-mute", "partial", "input-only", "overflow", "mismatched"] {
+            XCTAssertThrowsError(try core.toggleMute(preferences: selecting(uid)), uid)
+        }
+        XCTAssertEqual(hardware.devices[1]?.mainMute, false)
+        XCTAssertEqual(hardware.devices[3]?.channelMute, [false, nil])
+        XCTAssertTrue(hardware.muteWrites.isEmpty)
+        XCTAssertTrue(hardware.writes.isEmpty)
+    }
+
+    func testMuteInspectionAndReadFailuresDoNotWriteAndAllowLaterRecovery() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "usb", name: "USB", channels: [2], perChannelMute: [false, true])
+        let core = core(hardware)
+        hardware.failingUID.insert(1)
+        XCTAssertThrowsError(try core.toggleMute(preferences: selecting("usb")))
+        hardware.failingUID.remove(1)
+        hardware.failingMuteInspectionElement = 2
+        XCTAssertThrowsError(try core.toggleMute(preferences: selecting("usb")))
+        hardware.failingMuteInspectionElement = nil
+        hardware.failingMuteReadElement = 2
+        XCTAssertThrowsError(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [false, true])
+        XCTAssertTrue(hardware.muteWrites.isEmpty, "Read all states before performing any write")
+        hardware.failingMuteReadElement = nil
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [true, true])
+    }
+
+    func testMuteWriteFailuresRestoreOriginalChannelStatesAndReportRollbackFailures() throws {
+        let hardware = FakeAudioHardware()
+        hardware.add(1, uid: "usb", name: "USB", channels: [3], perChannelMute: [false, true, false])
+        let core = core(hardware)
+        hardware.failingMuteWriteElement = 1
+        XCTAssertThrowsError(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [false, true, false])
+        XCTAssertEqual(hardware.muteWrites.map(\.element), [1])
+
+        hardware.muteWrites.removeAll()
+        hardware.failingMuteWriteElement = 3
+        XCTAssertThrowsError(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [false, true, false])
+        XCTAssertEqual(hardware.muteWrites.map(\.element), [1, 2, 3, 1, 2])
+        XCTAssertEqual(hardware.muteWrites.map(\.value), [true, true, true, false, true])
+
+        hardware.muteFailed = false
+        hardware.failMuteRestore = true
+        XCTAssertThrowsError(try core.toggleMute(preferences: selecting("usb"))) {
+            XCTAssertTrue($0.localizedDescription.contains("Restore failed"))
+        }
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [true, true, false])
+        hardware.failMuteRestore = false
+        hardware.failingMuteWriteElement = nil
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [true, true, true])
+        XCTAssertTrue(try core.toggleMute(preferences: selecting("usb")))
+        XCTAssertEqual(hardware.devices[1]?.channelMute, [false, false, false])
+    }
 }
 
 private final class FakeAudioHardware: AudioHardware {
@@ -500,6 +648,8 @@ private final class FakeAudioHardware: AudioHardware {
         var main: Float?
         /// Index 0 is channel 1; nil means the channel is not writable.
         var channels: [Float?]
+        var mainMute: Bool?
+        var channelMute: [Bool?]
         var connection = AudioOutputConnection.unknown
     }
     struct FakeError: Error {}
@@ -515,11 +665,17 @@ private final class FakeAudioHardware: AudioHardware {
     var failRestore = false
     var failed = false
     var writes: [(element: UInt32, value: Float)] = []
+    var failingMuteInspectionElement: UInt32?
+    var failingMuteReadElement: UInt32?
+    var failingMuteWriteElement: UInt32?
+    var failMuteRestore = false
+    var muteFailed = false
+    var muteWrites: [(device: AudioDeviceHandle, element: UInt32, value: Bool)] = []
 
     func add(_ handle: AudioDeviceHandle, uid: String, name: String, channels: [UInt32], main: Float? = nil,
-             perChannel: [Float?] = [], alive: Bool = true) {
+             perChannel: [Float?] = [], alive: Bool = true, mainMute: Bool? = nil, perChannelMute: [Bool?] = []) {
         devices[handle] = Device(uid: uid, name: name, streams: channels, alive: alive, main: main,
-                                 channels: perChannel)
+                                 channels: perChannel, mainMute: mainMute, channelMute: perChannelMute)
         order.append(handle)
     }
 
@@ -565,5 +721,33 @@ private final class FakeAudioHardware: AudioHardware {
             throw FakeError()
         }
         if element == 0 { devices[handle]?.main = value } else { devices[handle]?.channels[Int(element) - 1] = value }
+    }
+    func isMuteWritable(_ handle: AudioDeviceHandle, element: UInt32) throws -> Bool {
+        if element == failingMuteInspectionElement { throw FakeError() }
+        let device = try device(handle)
+        if element == 0 { return device.mainMute != nil }
+        let index = Int(element) - 1
+        return device.channelMute.indices.contains(index) && device.channelMute[index] != nil
+    }
+    func isMuted(_ handle: AudioDeviceHandle, element: UInt32) throws -> Bool {
+        if element == failingMuteReadElement { throw FakeError() }
+        let device = try device(handle)
+        if element == 0, let value = device.mainMute { return value }
+        let index = Int(element) - 1
+        guard device.channelMute.indices.contains(index), let value = device.channelMute[index] else { throw FakeError() }
+        return value
+    }
+    func setMuted(_ handle: AudioDeviceHandle, element: UInt32, to value: Bool) throws {
+        guard try isMuteWritable(handle, element: element) else { throw FakeError() }
+        muteWrites.append((handle, element, value))
+        if element == failingMuteWriteElement || (failMuteRestore && muteFailed) {
+            muteFailed = true
+            throw FakeError()
+        }
+        if element == 0 {
+            devices[handle]?.mainMute = value
+        } else {
+            devices[handle]?.channelMute[Int(element) - 1] = value
+        }
     }
 }

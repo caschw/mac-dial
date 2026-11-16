@@ -1,6 +1,6 @@
 # Architecture
 
-Mac Dial has a macOS application, a MacDialKit framework, and hostless unit tests,
+Orbit has a macOS application, a MacDialKit framework, and hostless unit tests,
 with no third-party runtime dependencies.
 SwiftUI supplies settings and overlay content; AppKit hosts windows, the menu bar,
 and application lifecycle. IOKit reads Surface Dial HID reports directly and sends
@@ -106,9 +106,10 @@ without excluding otherwise usable devices. This metadata is not persisted.
 Settings retains disabled UID/name records even when disconnected, while new
 supported devices are eligible unless disabled. The selected UID is independent
 of menu hiding. Missing targets temporarily use the existing system-volume key
-path; returning targets resume automatically. Connected targets with unavailable
-controls report errors rather than redirecting volume elsewhere. System routing,
-mute, and media actions are unchanged.
+path; returning targets resume automatically. Mute uses the same remembered
+target and system-key fallback rules. Connected targets with unavailable controls
+report errors rather than redirecting volume or mute elsewhere. System routing
+and media actions are unchanged.
 
 `AudioOutputService` implements the narrow `AudioHardware` protocol with
 size-validated Core Audio reads and writes, and delegates discovery filtering,
@@ -119,7 +120,15 @@ published state stay in the app.
 
 Core Audio property sizes, returned array sizes, identities, and overflowing
 channel counts are checked before use. Volume writes require writable master
-controls or all writable output channels and finite scalars in 0...1. Fine
+controls or all writable output channels and finite scalars in 0...1. Mute uses
+the writable main mute control, or all writable output-channel mute controls.
+It reads every required mute state before writing and mutes all channels unless
+all are already muted, in which case it unmutes all. Partial mute writes attempt
+to restore each previously written channel's original state; failures, including
+rollback failures, use the existing audio error HUD/logging path without a
+system-device fallback. Native mute values use size-checked UInt32 properties
+(zero is unmuted, nonzero is muted); writes come from constrained Bool values.
+Volume levels, routing, and saved preferences are untouched by mute. Fine volume
 steps use 1/64 of the scalar range, saturate large positive counts safely,
 preserve channel balance, and attempt rollback on partial channel-write failure.
 Direct writes do not trigger the native macOS volume HUD. Explicit utility entry
@@ -217,6 +226,15 @@ integrations. The initial characterization tests were run against the original
 source with temporary test-only platform doubles before extraction; those
 duplicate source memberships were removed when tests switched to importing
 MacDialKit.
+
+The public app name is configured once through the app target's `PRODUCT_NAME`
+(`Orbit`). Info.plist expands it into `CFBundleName`, `CFBundleDisplayName`, and
+the Bluetooth usage description. App UI reads `AppInfo.displayName`, which
+uses localized `CFBundleDisplayName`, then `CFBundleName`, then the process name.
+Packaged builds must provide a nonempty display name. Framework recovery text
+and suggested export filenames are brand-neutral, so MacDialKit does not depend
+on the application's bundle metadata. Internal target/module/executable names,
+bundle identifiers, and settings keys are unchanged by this display-name change.
 
 `Resources/Info.plist` retains accessory-app and Bluetooth privacy metadata.
 `Resources/AppIcon.icon` is the authoritative layered Deep Fir on Blue Slate
