@@ -74,6 +74,8 @@ composition. The document contains three original SVGs in two groups: Orbit
 free of baked highlights, shadows, blur, translucency, and background masks.
 Use Composer's native gradients and material controls instead. The full-bleed
 background is configured in the document; the system supplies its corner mask.
+Saturated greens sit on a lighter cool-slate gradient, with a deeper
+corner for separation. These colors are native layer fills, not baked SVG effects.
 
 The shared scheme compiles this resource directly with Apple's asset compiler.
 Keep its name and `ASSETCATALOG_COMPILER_APPICON_NAME` set to `AppIcon`.
