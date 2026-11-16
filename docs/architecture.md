@@ -1,6 +1,6 @@
 # Architecture
 
-Mac Dial has a macOS application, a MacDialKit framework, and hostless unit tests,
+Orbit has a macOS application, a MacDialKit framework, and hostless unit tests,
 with no third-party runtime dependencies.
 SwiftUI supplies settings and overlay content; AppKit hosts windows, the menu bar,
 and application lifecycle. IOKit reads Surface Dial HID reports directly and sends
@@ -217,6 +217,15 @@ integrations. The initial characterization tests were run against the original
 source with temporary test-only platform doubles before extraction; those
 duplicate source memberships were removed when tests switched to importing
 MacDialKit.
+
+The public app name is configured once through the app target's `PRODUCT_NAME`
+(`Orbit`). Info.plist expands it into `CFBundleName`, `CFBundleDisplayName`, and
+the Bluetooth usage description. App UI reads `AppInfo.displayName`, which
+uses localized `CFBundleDisplayName`, then `CFBundleName`, then the process name.
+Packaged builds must provide a nonempty display name. Framework recovery text
+and suggested export filenames are brand-neutral, so MacDialKit does not depend
+on the application's bundle metadata. Internal target/module/executable names,
+bundle identifiers, and settings keys are unchanged by this display-name change.
 
 `Resources/Info.plist` retains accessory-app and Bluetooth privacy metadata.
 `Resources/AppIcon.icon` is the authoritative layered Deep Fir on Blue Slate

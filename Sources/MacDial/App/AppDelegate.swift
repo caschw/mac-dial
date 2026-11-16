@@ -2,6 +2,12 @@ import AppKit
 import SwiftUI
 import ServiceManagement
 
+enum AppInfo {
+    static let displayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+        ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+        ?? ProcessInfo.processInfo.processName
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let settings = SettingsStore()
     let device = DialDevice()
@@ -99,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                     audio: audio,
                                     setLaunchAtLogin: { [weak self] in self?.setLaunchAtLogin($0) })
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-            window.title = "Mac Dial"
+            window.title = AppInfo.displayName
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             window.toolbarStyle = .unified
             window.setContentSize(NSSize(width: 820, height: 600))

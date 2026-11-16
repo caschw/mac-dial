@@ -1,8 +1,8 @@
-# Using Mac Dial
+# Using Orbit
 
 **Surface Dial support for macOS, rebuilt natively for Apple Silicon.**
 
-macOS can pair with a Microsoft Surface Dial, but it turns the dial's input into broken mouse events. Mac Dial reads the dial directly and turns it into whatever you want: scrolling, volume, switching desktops, keyboard shortcuts, clicks, and more. It also brings back the Surface Dial's **press-and-hold radial menu** for switching between tools.
+macOS can pair with a Microsoft Surface Dial, but it turns the dial's input into broken mouse events. Orbit reads the dial directly and turns it into whatever you want: scrolling, volume, switching desktops, keyboard shortcuts, clicks, and more. It also brings back the Surface Dial's **press-and-hold radial menu** for switching between tools.
 
 For project lineage, licensing, and development documentation, see the [README](../README.md).
 
@@ -80,14 +80,14 @@ The menu-bar button stays at normal contrast when the Dial is disconnected:
 Settings and pairing help remain available. Connection state appears in its
 tooltip, the menu heading, and Settings instead of dimming the entire icon.
 
-Mac Dial launches in the menu bar without opening Settings, including when
+Orbit launches in the menu bar without opening Settings, including when
 permissions or saved settings need attention. Open the menu to see any warnings;
 select a warning or **Settings…** for details. macOS may still show its own
-permission prompt. Closing Settings leaves Mac Dial running in the menu bar.
-Use **Quit Mac Dial** to exit.
+permission prompt. Closing Settings leaves Orbit running in the menu bar.
+Use **Quit Orbit** to exit.
 
 If a window-management utility quits apps when their last window closes, exclude
-Mac Dial from that rule. Its Quit request exits Mac Dial even though closing
+Orbit from that rule. Its Quit request exits Orbit even though closing
 Settings alone does not.
 
 ### Radial menu
@@ -117,7 +117,7 @@ dismissal do not change the volume target.
 
 ### Volume Output
 
-This utility selects which device **Mac Dial's Volume actions** adjust. It does
+This utility selects which device **Orbit's Volume actions** adjust. It does
 **not** change macOS's default output or route audio from other apps. For example,
 selecting headphones only changes their volume; it does not move currently
 playing audio to them. Without a selected device, volume uses the existing
@@ -134,7 +134,7 @@ remain visible in Settings but are excluded from the arc.
 
 If a selected device disconnects, volume temporarily follows macOS's current
 output and resumes the remembered device when it returns. If the device remains
-connected but cannot be adjusted, Mac Dial reports an error instead of silently
+connected but cannot be adjusted, Orbit reports an error instead of silently
 changing another output. **Follow macOS Output** clears the explicit selection.
 
 Volume Output is added once to new and existing installations without changing
@@ -151,9 +151,9 @@ utility instead of repeatedly opening it.
 
 **Requires macOS 26 Tahoe or later.** Built for Apple Silicon Macs.
 
-1. [Build from source](building.md), then copy **Mac Dial.app** to your **Applications** folder.
+1. [Build from source](building.md), then copy **Orbit.app** to your **Applications** folder.
 2. Open it. Local builds are ad-hoc signed, not notarized. Only approve a build you trust if macOS asks you to review it in **System Settings > Privacy & Security**.
-3. Grant **Accessibility** access when asked (**System Settings > Privacy & Security > Accessibility**). Mac Dial needs it to send scrolls, clicks, and keystrokes.
+3. Grant **Accessibility** access when asked (**System Settings > Privacy & Security > Accessibility**). Orbit needs it to send scrolls, clicks, and keystrokes.
 
 ### Pair your Surface Dial
 
@@ -164,13 +164,13 @@ utility instead of repeatedly opening it.
 If Settings warns that saved settings cannot be fully understood, the original
 remains unchanged and edits are temporary. Use **Export Original…** to keep a
 copy, then **Replace Saved Settings…** only if you want to save the settings
-currently shown. If another instance changes the saved settings, Mac Dial
+currently shown. If another instance changes the saved settings, Orbit
 protects the newer value and asks for confirmation again.
 
 ### Tips
 
-- **Open at login:** Settings › General › *Open Mac Dial at login*.
-- **Instant wake:** when the dial goes to sleep, Mac Dial has your Mac listen for it so it reconnects as soon as you press or turn it. Allow **Bluetooth** access when asked. You can turn this off in Settings › General › *Wake instantly from sleep*.
+- **Open at login:** Settings › General › *Open Orbit at login*.
+- **Instant wake:** when the dial goes to sleep, Orbit has your Mac listen for it so it reconnects as soon as you press or turn it. Allow **Bluetooth** access when asked. You can turn this off in Settings › General › *Wake instantly from sleep*.
 - **Switch desktops** needs the ⌃← / ⌃→ shortcuts turned on in **System Settings › Keyboard › Keyboard Shortcuts › Mission Control**.
 - **Brightness** only affects Apple displays.
 - **Switch modes** from the radial menu (press & hold), or from the menu bar icon.

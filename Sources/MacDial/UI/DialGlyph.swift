@@ -30,7 +30,7 @@ enum DialGlyph {
         }
         image.size = NSSize(width: 18, height: 18)
         image.isTemplate = style != .color
-        image.accessibilityDescription = "Mac Dial"
+        image.accessibilityDescription = AppInfo.displayName
         return image
     }
 
@@ -71,7 +71,7 @@ struct SystemAppIcon: View {
     var body: some View {
         Image(nsImage: icon)
             .resizable()
-            .accessibilityLabel("Mac Dial")
+            .accessibilityLabel(AppInfo.displayName)
             .onAppear(perform: refreshIcon)
             .onChange(of: colorScheme) { refreshIcon() }
             .onReceive(

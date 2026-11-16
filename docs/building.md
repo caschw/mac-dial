@@ -35,7 +35,7 @@ The checked-in Xcode project is the authoritative build definition; no dependenc
 installation is required.
 
 Both Debug and Release use marketing version `1.0`, build `1`, bundle identifier
-`local.macdial.MacDial`, and executable `MacDial` inside `Mac Dial.app`.
+`com.caschw.MacDial`, and executable `MacDial` inside `Orbit.app`.
 `Resources/Info.plist` expands the target build settings. The deployment target
 is macOS 26.0 for every target.
 
@@ -54,7 +54,7 @@ xcodebuild \
   build
 ```
 
-The result is `build/DerivedData/Build/Products/Release/Mac Dial.app`.
+The result is `build/DerivedData/Build/Products/Release/Orbit.app`.
 Use `-configuration Debug` for a development build. Debug builds the active
 architecture; Release uses standard macOS architectures and can produce a
 universal arm64/x86_64 app. The destination selects an Apple Silicon Mac, not an
@@ -125,7 +125,7 @@ below rather than overriding its runtime icon with an `.icns` or PNG.
 No global icon caches, application identifiers, versions, or settings are changed.
 
 When diagnosing stale artwork, confirm the running app's bundle path and verify
-that exact bundle with `codesign --verify --deep --strict "/path/to/Mac Dial.app"`.
+that exact bundle with `codesign --verify --deep --strict "/path/to/Orbit.app"`.
 A modified `Assets.car` invalidates the resource signature; rebuild the app
 rather than editing its compiled resources. A correct Finder icon alone does not
 establish what the running app or Dock displays. For an Xcode development
@@ -189,13 +189,13 @@ There is no SwiftPM or alternate shell build.
 After building:
 
 ```sh
-plutil -p 'build/DerivedData/Build/Products/Release/Mac Dial.app/Contents/Info.plist'
-file 'build/DerivedData/Build/Products/Release/Mac Dial.app/Contents/MacOS/MacDial'
-codesign --verify --deep --strict 'build/DerivedData/Build/Products/Release/Mac Dial.app'
-otool -L 'build/DerivedData/Build/Products/Release/Mac Dial.app/Contents/MacOS/MacDial'
+plutil -p 'build/DerivedData/Build/Products/Release/Orbit.app/Contents/Info.plist'
+file 'build/DerivedData/Build/Products/Release/Orbit.app/Contents/MacOS/MacDial'
+codesign --verify --deep --strict 'build/DerivedData/Build/Products/Release/Orbit.app'
+otool -L 'build/DerivedData/Build/Products/Release/Orbit.app/Contents/MacOS/MacDial'
 ```
 
-Check version `1.0`, build `1`, the bundle identifier and executable above,
+Check version `1.0`, build `1`, display name `Orbit`, the bundle identifier and executable above,
 `LSUIElement = true`, `LSMinimumSystemVersion` 26.0, the Bluetooth usage description, and
 `AppIcon.icns` in `Contents/Resources`. In Xcode, each source should occur once in
 its owning target's Compile Sources and both the asset catalog and `AppIcon.icon`

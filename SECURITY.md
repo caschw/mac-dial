@@ -10,7 +10,7 @@ Coordinate disclosure privately with the maintainer. Do not publish exploit deta
 
 ## What the app can access
 
-Mac Dial asks for these permissions, and only uses them for the dial:
+Orbit asks for these permissions, and only uses them for the dial:
 
 - **Accessibility**: to send the scroll, click, and keyboard events you set up for the dial.
 - **Input Monitoring** (only if macOS asks): to read input from the Surface Dial over Bluetooth.

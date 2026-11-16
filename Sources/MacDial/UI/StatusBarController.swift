@@ -31,8 +31,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         guard let button = statusItem.button else { return }
         let mode = settings.config.currentMode
         button.image = DialGlyph.menuBarImage(settings.config.menuBarGlyph, modeIcon: mode.icon)
-        button.image?.accessibilityDescription = "Mac Dial – \(mode.name)"
-        button.toolTip = "Mac Dial – \(mode.name)" + (device.isConnected ? "" : " (dial not connected)")
+        button.image?.accessibilityDescription = "\(AppInfo.displayName) – \(mode.name)"
+        button.toolTip = "\(AppInfo.displayName) – \(mode.name)" + (device.isConnected ? "" : " (dial not connected)")
     }
 
     // Built lazily each time it opens, so it always reflects current state.
@@ -80,7 +80,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         prefs.target = self
         menu.addItem(prefs)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Mac Dial", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit \(AppInfo.displayName)", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
     @objc private func selectMode(_ sender: NSMenuItem) {

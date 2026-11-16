@@ -226,7 +226,7 @@ struct GeneralSettings: View {
                     }
                     if status.needsInputMonitoring {
                         PermissionRow(title: "Input Monitoring",
-                                      detail: "Needed to read the dial. Restart Mac Dial after granting.",
+                                      detail: "Needed to read the dial. Restart \(AppInfo.displayName) after granting.",
                                       url: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
                     }
                 }
@@ -292,7 +292,7 @@ struct GeneralSettings: View {
             }
 
             Section("System") {
-                Toggle("Open Mac Dial at login", isOn: Binding(
+                Toggle("Open \(AppInfo.displayName) at login", isOn: Binding(
                     get: { status.launchAtLogin },
                     set: { setLaunchAtLogin($0) }))
                 HStack {
@@ -411,7 +411,7 @@ struct AudioOutputSettings: View {
 
     var body: some View {
         Section {
-            Text("Choose which output Mac Dial's Volume actions control. This does not change where macOS or other apps play audio.")
+            Text("Choose which output \(AppInfo.displayName)'s Volume actions control. This does not change where macOS or other apps play audio.")
                 .foregroundStyle(.secondary)
             LabeledContent("Current volume output", value: targetName)
             if let uid = store.config.audioOutput.selectedUID,
