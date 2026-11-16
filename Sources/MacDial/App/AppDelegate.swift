@@ -139,8 +139,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         statusTimer?.invalidate()
         statusTimer = nil
-        DispatchQueue.main.async { [weak self, weak window] in
-            guard let self, let window else { return }
+        DispatchQueue.main.async { [weak window] in
+            guard let window else { return }
             window.orderOut(nil)
             NSApp.setActivationPolicy(.accessory)
         }

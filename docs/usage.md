@@ -19,7 +19,7 @@ For project lineage, licensing, and development documentation, see the [README](
 - **Haptic feedback**: ticks while turning, plus a buzz when you change modes or move through the menu.
 - **Liquid Glass** radial menu and HUD, in light and dark mode. The menu respects Reduce Transparency, Reduce Motion, and Increase Contrast.
 - **Modern settings window** built with SwiftUI.
-- **Dial menu bar icon** in four styles (Dial, Outline, Solid, Color), or the current mode's icon. Pick one in Settings › Appearance.
+- **Orbit menu bar icon** in four styles (Dial, Outline, Solid, Color), or the current mode's icon. Pick one in Settings › Appearance.
 - Adjustable sensitivity, gesture timing, an on-screen label when you switch modes, and an option to open at login.
 
 ### What turning can do
@@ -67,6 +67,18 @@ its down arrow uses secondary gray. Both adapt to dark appearance.
 Saved `scroll` and `scrollable-list` icon names resolve to the new symbol on
 load without resetting modes, bindings, or selection. Other chosen icons are
 preserved; the settings schema and storage keys are unchanged.
+
+The app icon uses Deep Fir green on Blue Slate with native glass lighting.
+The four fixed menu-bar styles share its detached-corner Orbit identity:
+**Dial** has a softer arc and solid center, **Outline** has a hollow center,
+**Solid** uses heavier strokes, and **Color** uses Deep Fir greens with a lighter
+palette on dark menu bars. The three monochrome styles are system templates,
+so macOS supplies their tint. **Mode icon** still follows the selected mode,
+including Scroll's two-tone arrows. Settings previews use the same images as
+the menu bar; existing style selections are preserved.
+The menu-bar button stays at normal contrast when the Dial is disconnected:
+Settings and pairing help remain available. Connection state appears in its
+tooltip, the menu heading, and Settings instead of dimming the entire icon.
 
 ### Radial menu
 

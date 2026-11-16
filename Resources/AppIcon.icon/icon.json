@@ -1,0 +1,82 @@
+{
+  "features" : [
+    "refractivity"
+  ],
+  "fill" : {
+    "linear-gradient" : [
+      "extended-gray:0.75000,1.00000",
+      "srgb:0.59608,0.65490,0.73725,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "blur-material" : 0.1,
+      "layers" : [
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.28556,0.53510,0.40585,1.00000",
+              "srgb:0.15686,0.49020,0.35686,1.00000"
+            ]
+          },
+          "glass" : true,
+          "image-name" : "01-orbit.svg",
+          "name" : "Orbit"
+        },
+        {
+          "glass" : true,
+          "image-name" : "02-corner.svg",
+          "name" : "Detached corner"
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "01 Orbit",
+      "refractivity" : {
+        "depth" : 0.14,
+        "enabled" : true,
+        "strength" : 0.25
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.4
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.15
+      }
+    },
+    {
+      "blur-material" : 0.1,
+      "layers" : [
+        {
+          "fill" : {
+            "automatic-gradient" : "srgb:0.12549,0.36471,0.25098,1.00000"
+          },
+          "glass" : true,
+          "image-name" : "03-center.svg",
+          "name" : "Center"
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "02 Center",
+      "refractivity" : {
+        "depth" : 0.2,
+        "enabled" : true,
+        "strength" : 0.25
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.3
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.15
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}

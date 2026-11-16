@@ -32,7 +32,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let mode = settings.config.currentMode
         button.image = DialGlyph.menuBarImage(settings.config.menuBarGlyph, modeIcon: mode.icon)
         button.image?.accessibilityDescription = "Mac Dial – \(mode.name)"
-        button.appearsDisabled = !device.isConnected
         button.toolTip = "Mac Dial – \(mode.name)" + (device.isConnected ? "" : " (dial not connected)")
     }
 

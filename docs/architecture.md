@@ -15,7 +15,7 @@ haptic output. CoreBluetooth keeps the paired dial ready for instant wake.
 | `Input` | `DialController` forwards reports to MacDialKit and coordinates settings, actions, and overlays; `MainRunLoopScheduler` supplies Foundation timers and wall-clock time |
 | `Actions` | `Actions.swift` implements native system, keyboard, mouse, volume, brightness, and media operations; `AudioOutputService` owns Core Audio discovery, listeners, and selected-device volume control |
 | `Settings` | `SettingsStore` publishes configuration changes and provides recovery UI; AppKit shortcut helpers and `SettingsView` provide presentation |
-| `UI` | `StatusBarController` handles the menu bar; `Overlays` contains the radial-menu controller, panels, and HUD; `GlassDialView` renders the glass dial and nested arcs; `DialGlyph` draws icons |
+| `UI` | `StatusBarController` handles the menu bar; `Overlays` contains the radial-menu controller, panels, and HUD; `GlassDialView` renders the glass dial and nested arcs; `DialGlyph` loads menu-bar artwork and the compiled app icon |
 
 `Sources/MacDialKit` contains the platform-independent behavior:
 
@@ -216,10 +216,42 @@ duplicate source memberships were removed when tests switched to importing
 MacDialKit.
 
 `Resources/Info.plist` retains accessory-app and Bluetooth privacy metadata.
-`Resources/Assets.xcassets/AppIcon.appiconset` contains the existing icon artwork
-at standard macOS sizes. Xcode compiles it into the app; no custom build script
-generates the icon. Add sources and resources to their owning target's build
-phases exactly once and keep Info.plist out of Copy Bundle Resources.
+`Resources/AppIcon.icon` is the authoritative layered Deep Fir on Blue Slate
+app icon. Its three original, filled SVG layers preserve the Orbit silhouette;
+the center is one disk without a drawn border or highlight. Icon Composer
+supplies the background and foreground gradients, glass, material blur,
+specular lighting, translucency, and group shadows. Two groups separate the
+orbit/corner and center from the background; refraction adds restrained native
+depth on design generation 27 without changing the source shapes. Design
+generation 26 retains native glass lighting and shadows without refraction.
+Xcode compiles the document using the `AppIcon` build setting. It is the only
+app-icon source; the obsolete bitmap appiconset is removed rather than keeping
+two sets of different artwork under the same name. No custom build script
+generates the icon.
+
+`DialGlyph` loads the four original Orbit menu-bar vector image sets from
+`Resources/Assets.xcassets`. Their geometry is optically adjusted for an 18-point
+menu-bar image rather than shrinking the glass app icon. Dial, Outline, and
+Solid are template images; Color has catalog-managed light/dark Deep Fir
+variants. Settings and the status item use this same loader. Mode icon retains
+the current tool's symbol and Scroll's two-layer palette; a missing mode symbol
+is logged and falls back to the Orbit Dial template. The persisted `MenuBarGlyph`
+raw values and labels are unchanged. Settings loads the compiled `AppIcon` by
+name through AppKit rather than opening the legacy `AppIcon.icns` fallback.
+This uses the catalog's material-rendered image. AppKit may expose raster
+representations here; an in-app `NSImage` is not an interactive Icon Composer
+canvas.
+An unavailable named asset is logged; the optional `--render-icon` command
+exports a flattened snapshot of that image and fails if the asset is missing.
+The export is not used by Settings or the Dock. AppDelegate does not override
+`NSApp.applicationIconImage` or the Dock tile: macOS owns the layered application
+icon and its appearance as Settings switches between accessory and regular
+activation. The runtime presentation is system-controlled, not a reproduction
+of Icon Composer's interactive preview lighting.
+The usable status-bar button is not disabled or dimmed when the device is
+disconnected; its tooltip and menu heading report the connection state instead.
+Add sources and resources to their owning target's build phases exactly
+once and keep Info.plist out of Copy Bundle Resources.
 
 ## Future migration
 

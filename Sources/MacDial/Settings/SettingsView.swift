@@ -187,9 +187,11 @@ struct GeneralSettings: View {
         Form {
             Section {
                 HStack(spacing: 14) {
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
-                        .frame(width: 52, height: 52)
+                    if let icon = DialGlyph.appIcon() {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .frame(width: 52, height: 52)
+                    }
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Surface Dial").font(.headline)

@@ -2,10 +2,11 @@ import AppKit
 
 let arguments = CommandLine.arguments
 
-// `MacDial --render-icon <path.png>` writes the app icon and exits.
+// `MacDial --render-icon <path.png>` exports a snapshot of the named app icon and exits.
 if let index = arguments.firstIndex(of: "--render-icon"), index + 1 < arguments.count {
     do {
-        try DialGlyph.writePNG(DialGlyph.appIcon(), size: 1024, to: URL(fileURLWithPath: arguments[index + 1]))
+        guard let icon = DialGlyph.appIcon() else { exit(1) }
+        try DialGlyph.writePNG(icon, size: 1024, to: URL(fileURLWithPath: arguments[index + 1]))
         exit(0)
     } catch {
         fputs("Failed to render icon: \(error)\n", stderr)
