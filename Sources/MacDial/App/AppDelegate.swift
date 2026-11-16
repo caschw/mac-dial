@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import SwiftUI
 import ServiceManagement
 
@@ -13,7 +12,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusBar: StatusBarController!
     private var settingsWindow: NSWindow?
     private var statusTimer: Timer?
-    private var recoverySubscription: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let scheduler = MainRunLoopScheduler()
@@ -24,14 +22,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusBar = StatusBarController(settings: settings, device: device)
         statusBar.onOpenSettings = { [weak self] in self?.showSettings() }
         statusBar.onShowRadialMenu = { [weak self] in self?.controller.showRadialMenu() }
-        recoverySubscription = settings.$recovery.dropFirst().sink { [weak self] recovery in
-            guard recovery != nil else { return }
-            DispatchQueue.main.async {
-                guard let self, self.settings.recovery != nil else { return }
-                self.showSettings()
-            }
-        }
-
         device.onConnectionChanged = { [weak self] connected in
             if connected { self?.controller.waker.dialDidAttach() }
             self?.refreshStatus()
@@ -58,15 +48,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if !AXIsProcessTrusted() {
             let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             AXIsProcessTrustedWithOptions(options)
-            showSettings()
-        } else if settings.recovery != nil {
-            showSettings()
         }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showSettings()
         return true
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -130,9 +121,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowShouldClose(_ window: NSWindow) -> Bool {
+        guard window === settingsWindow else { return true }
+
         statusTimer?.invalidate()
         statusTimer = nil
-        NSApp.setActivationPolicy(.accessory)
+        DispatchQueue.main.async { [weak window] in
+            guard let window else { return }
+            window.orderOut(nil)
+            NSApp.setActivationPolicy(.accessory)
+        }
+        return false
     }
 }

@@ -32,7 +32,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let mode = settings.config.currentMode
         button.image = DialGlyph.menuBarImage(settings.config.menuBarGlyph, modeIcon: mode.icon)
         button.image?.accessibilityDescription = "Mac Dial – \(mode.name)"
-        button.appearsDisabled = !device.isConnected
         button.toolTip = "Mac Dial – \(mode.name)" + (device.isConnected ? "" : " (dial not connected)")
     }
 
@@ -43,13 +42,32 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.sectionHeader(title: device.isConnected ? "Surface Dial connected" : "Surface Dial not connected"))
         menu.addItem(.separator())
 
+        var notices: [String] = []
+        if settings.recovery != nil {
+            notices.append("Saved settings need attention…")
+        }
+        if !AXIsProcessTrusted() {
+            notices.append("Accessibility permission needed…")
+        }
+        if device.needsInputMonitoringPermission {
+            notices.append("Input Monitoring permission needed…")
+        }
+        for title in notices {
+            let item = NSMenuItem(title: title, action: #selector(openSettings), keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        if !notices.isEmpty {
+            menu.addItem(.separator())
+        }
+
         menu.addItem(NSMenuItem.sectionHeader(title: "Mode"))
         let current = settings.config.currentMode.id
         for (index, mode) in settings.config.enabledModes.enumerated() {
             let item = NSMenuItem(title: mode.name, action: #selector(selectMode(_:)), keyEquivalent: index < 9 ? "\(index + 1)" : "")
             item.target = self
             item.representedObject = mode.id
-            item.image = NSImage(systemSymbolName: mode.icon, accessibilityDescription: nil)
+            item.image = MacDialIcon.image(named: mode.icon)
             item.state = mode.id == current ? .on : .off
             menu.addItem(item)
         }

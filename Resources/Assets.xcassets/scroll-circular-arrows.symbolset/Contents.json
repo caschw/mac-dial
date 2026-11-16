@@ -1,0 +1,13 @@
+{
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  },
+  "symbols" : [
+    {
+      "filename" : "scroll-circular-arrows.svg",
+      "idiom" : "universal",
+      "scale" : "1x"
+    }
+  ]
+}

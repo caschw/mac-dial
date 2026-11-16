@@ -1,0 +1,92 @@
+{
+  "features" : [
+    "refractivity"
+  ],
+  "fill" : {
+    "linear-gradient" : [
+      "srgb:0.89836,0.95500,1.00000,1.00000",
+      "srgb:0.66243,0.73274,0.82278,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "blur-material" : 0.1,
+      "layers" : [
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "srgb:0.00000,0.69657,0.37466,1.00000",
+              "srgb:0.00000,0.61231,0.32934,1.00000"
+            ]
+          },
+          "glass" : true,
+          "image-name" : "01-orbit.svg",
+          "name" : "Orbit"
+        },
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "srgb:0.00000,0.54000,0.29470,1.00000",
+              "srgb:0.00033,0.40555,0.22458,1.00000"
+            ]
+          },
+          "glass" : true,
+          "image-name" : "02-corner.svg",
+          "name" : "Detached corner"
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "01 Orbit",
+      "refractivity" : {
+        "depth" : 0.14,
+        "enabled" : true,
+        "strength" : 0.25
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.4
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.15
+      }
+    },
+    {
+      "blur-material" : 0.1,
+      "layers" : [
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "srgb:0.00000,0.69657,0.37466,1.00000",
+              "srgb:0.00000,0.61231,0.32934,1.00000"
+            ]
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "03-center.svg",
+          "name" : "Center"
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "02 Center",
+      "refractivity" : {
+        "depth" : 0.2,
+        "enabled" : true,
+        "strength" : 0.25
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.3
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.15
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}

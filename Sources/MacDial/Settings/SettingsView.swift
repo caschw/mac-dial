@@ -35,7 +35,7 @@ struct SettingsView: View {
                                 }
                             }
                         } icon: {
-                            Image(systemName: mode.icon)
+                                MacDialIconView(name: mode.icon)
                         }
                         .opacity(mode.enabled ? 1 : 0.45)
                         .tag(Page.mode(mode.id))
@@ -187,8 +187,7 @@ struct GeneralSettings: View {
         Form {
             Section {
                 HStack(spacing: 14) {
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
+                    SystemAppIcon()
                         .frame(width: 52, height: 52)
 
                     VStack(alignment: .leading, spacing: 3) {
@@ -488,11 +487,11 @@ struct IconPicker: View {
         LazyVGrid(columns: columns, spacing: 6) {
             ForEach(DialMode.iconChoices, id: \.self) { icon in
                 Button { selection = icon } label: {
-                    Image(systemName: icon)
+                    MacDialIconView(name: icon,
+                                    primary: icon == selection ? .white : .primary)
                         .frame(width: 30, height: 30)
                         .background(RoundedRectangle(cornerRadius: 7)
                             .fill(icon == selection ? Color.accentColor : Color.primary.opacity(0.06)))
-                        .foregroundStyle(icon == selection ? Color.white : Color.primary)
                 }
                 .buttonStyle(.plain)
             }
