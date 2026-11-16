@@ -117,13 +117,17 @@ dismissal do not change the volume target.
 
 ### Volume Output
 
-This utility selects which device **Orbit's Volume actions** adjust. It does
+This utility selects which device **Orbit's Volume and Mute actions** adjust. It does
 **not** change macOS's default output or route audio from other apps. For example,
-selecting headphones only changes their volume; it does not move currently
-playing audio to them. Without a selected device, volume uses the existing
-system-volume keys and native HUD. An explicitly selected device uses Core Audio
-directly and does not display the native macOS volume HUD. Mute and media actions
-keep their existing system-wide behavior.
+selecting headphones directs subsequent Volume and Mute actions to them; it does
+not move currently playing audio to them. Without a selected device, Volume and
+Mute use the existing system keys and native HUD. An explicitly selected device uses Core Audio
+directly and does not display the native macOS volume HUD. Mute toggles that same
+device's software mute control without changing its volume levels. For devices
+with only per-channel mute controls, Mute mutes all channels; when all channels
+are muted, the next activation unmutes them. If a connected device lacks writable
+software mute controls, Orbit reports an error instead of muting another device.
+Media actions keep their existing system-wide behavior.
 
 Settings > **Volume Output** lists live sound outputs. **Disable** only hides a
 device from the dial arc; it does not disconnect it, change routing, or clear a
@@ -132,8 +136,8 @@ including disconnected ones, with an **Enable** button. New and returning device
 appear automatically unless disabled. Devices without software volume control
 remain visible in Settings but are excluded from the arc.
 
-If a selected device disconnects, volume temporarily follows macOS's current
-output and resumes the remembered device when it returns. If the device remains
+If a selected device disconnects, Volume and Mute temporarily follow macOS's current
+output and resume the remembered device when it returns. If the device remains
 connected but cannot be adjusted, Orbit reports an error instead of silently
 changing another output. **Follow macOS Output** clears the explicit selection.
 

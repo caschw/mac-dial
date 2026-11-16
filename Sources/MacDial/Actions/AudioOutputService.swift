@@ -74,6 +74,16 @@ final class AudioOutputService: ObservableObject, AudioHardware {
         }
     }
 
+    /// Errors are reported and consumed; only a missing target uses the system mute key.
+    func toggleMute(preferences: AudioOutputPreferences) -> Bool {
+        do {
+            return try core.toggleMute(preferences: preferences)
+        } catch {
+            report(error)
+            return true
+        }
+    }
+
     // MARK: AudioHardware
 
     func deviceHandles() throws -> [AudioDeviceHandle] {
@@ -163,6 +173,26 @@ final class AudioOutputService: ObservableObject, AudioHardware {
 
     func setVolume(_ device: AudioDeviceHandle, element: UInt32, to value: Float) throws {
         try writeVolume(device, element: element, value: value)
+    }
+
+    func isMuteWritable(_ device: AudioDeviceHandle, element: UInt32) throws -> Bool {
+        var address = address(kAudioDevicePropertyMute, scope: kAudioDevicePropertyScopeOutput, element: element)
+        guard AudioObjectHasProperty(device, &address) else { return false }
+        var settable = DarwinBoolean(false)
+        try check(AudioObjectIsPropertySettable(device, &address, &settable), "inspect mute control")
+        return settable.boolValue
+    }
+
+    func isMuted(_ device: AudioDeviceHandle, element: UInt32) throws -> Bool {
+        try scalar(device, selector: kAudioDevicePropertyMute, scope: kAudioDevicePropertyScopeOutput,
+                   element: element, initial: UInt32(0)) != 0
+    }
+
+    func setMuted(_ device: AudioDeviceHandle, element: UInt32, to value: Bool) throws {
+        var value: UInt32 = value ? 1 : 0
+        var address = address(kAudioDevicePropertyMute, scope: kAudioDevicePropertyScopeOutput, element: element)
+        try check(AudioObjectSetPropertyData(device, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value),
+                  "change sound output mute")
     }
 
     private func writeVolume(_ id: AudioObjectID, element: AudioObjectPropertyElement, value: Float) throws {

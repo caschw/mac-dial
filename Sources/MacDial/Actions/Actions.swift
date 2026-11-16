@@ -240,7 +240,9 @@ final class ActionEngine: DialActions {
         case .middleClick: InputSynth.click(.middle)
         case .doubleLeftClick: InputSynth.doubleClick()
         case .playPause: InputSynth.postAuxKey(.play)
-        case .mute: InputSynth.postAuxKey(.mute)
+        case .mute:
+            if let settings, audio.toggleMute(preferences: settings.config.audioOutput) { return }
+            InputSynth.postAuxKey(.mute)
         case .nextTrack: InputSynth.postAuxKey(.next)
         case .previousTrack: InputSynth.postAuxKey(.previous)
         case .missionControl: openMissionControl(arguments: [])

@@ -411,7 +411,7 @@ struct AudioOutputSettings: View {
 
     var body: some View {
         Section {
-            Text("Choose which output \(AppInfo.displayName)'s Volume actions control. This does not change where macOS or other apps play audio.")
+            Text("Choose which output \(AppInfo.displayName)'s Volume and Mute actions control. This does not change where macOS or other apps play audio.")
                 .foregroundStyle(.secondary)
             LabeledContent("Current volume output", value: targetName)
             if let uid = store.config.audioOutput.selectedUID,
