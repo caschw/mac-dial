@@ -60,6 +60,14 @@ If a mode only uses a mouse click, with no double-click, press & hold, or turn-w
 
 In ordinary modes, **press & hold** opens the radial menu. Everything can be changed in Settings.
 
+Scroll uses the bundled `scroll-circular-arrows` symbol in Settings, the icon
+picker, the radial menu, the mode label, and the menu bar's Mode icon style.
+Its up arrow uses the primary label color (near-black in light appearance);
+its down arrow uses secondary gray. Both adapt to dark appearance.
+Saved `scroll` and `scrollable-list` icon names resolve to the new symbol on
+load without resetting modes, bindings, or selection. Other chosen icons are
+preserved; the settings schema and storage keys are unchanged.
+
 ### Radial menu
 
 Turn to move the highlight and click to choose. The menu closes after six

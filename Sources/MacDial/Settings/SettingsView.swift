@@ -489,8 +489,7 @@ struct IconPicker: View {
             ForEach(DialMode.iconChoices, id: \.self) { icon in
                 Button { selection = icon } label: {
                     MacDialIconView(name: icon,
-                                    primary: icon == selection ? .white : .primary,
-                                    secondary: icon == selection ? .white : .accentColor)
+                                    primary: icon == selection ? .white : .primary)
                         .frame(width: 30, height: 30)
                         .background(RoundedRectangle(cornerRadius: 7)
                             .fill(icon == selection ? Color.accentColor : Color.primary.opacity(0.06)))

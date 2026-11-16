@@ -186,7 +186,7 @@ public enum DialModeKind: String, Codable {
 }
 
 public struct DialMode: Codable, Equatable, Identifiable {
-    public static let scrollIcon = "scrollable-list"
+    public static let scrollIcon = "scroll-circular-arrows"
 
     public var id = UUID()
     public var name: String
@@ -320,7 +320,7 @@ public struct DialConfig: Codable, Equatable {
         let d = DialConfig()
         modes = ((try? c.decode([DialMode].self, forKey: .modes)) ?? d.modes).map { mode in
             var mode = mode
-            if mode.icon == "scroll" {
+            if mode.icon == "scroll" || mode.icon == "scrollable-list" {
                 mode.icon = DialMode.scrollIcon
             }
             return mode
