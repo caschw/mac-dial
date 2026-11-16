@@ -80,6 +80,16 @@ The menu-bar button stays at normal contrast when the Dial is disconnected:
 Settings and pairing help remain available. Connection state appears in its
 tooltip, the menu heading, and Settings instead of dimming the entire icon.
 
+Mac Dial launches in the menu bar without opening Settings, including when
+permissions or saved settings need attention. Open the menu to see any warnings;
+select a warning or **Settings…** for details. macOS may still show its own
+permission prompt. Closing Settings leaves Mac Dial running in the menu bar.
+Use **Quit Mac Dial** to exit.
+
+If a window-management utility quits apps when their last window closes, exclude
+Mac Dial from that rule. Its Quit request exits Mac Dial even though closing
+Settings alone does not.
+
 ### Radial menu
 
 Turn to move the highlight and click to choose. The menu closes after six

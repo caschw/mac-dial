@@ -135,9 +135,12 @@ owns the gesture interpreter, forwards input, and applies device settings.
 Mode changes cancel pending click/hold timers and retain the existing HUD and
 haptic policy. Mouse-only bindings still pass down/up through for dragging.
 GestureInterpreter cancels pending timers on destruction as well.
-The app normally runs as an accessory/menu-bar utility; opening settings
-temporarily gives it regular Dock and app-switcher presence. Closing settings
-restores accessory behavior.
+The app launches as an accessory/menu-bar utility without opening Settings.
+Permission and settings-recovery warnings are actionable menu items; recovery
+changes do not automatically open a window. The native Accessibility prompt is
+unchanged. Opening settings temporarily gives it regular Dock and app-switcher
+presence. Closing settings restores accessory behavior without terminating the
+app. Explicit Quit requests and system termination are still honored.
 
 `DialDevice` owns the native callback and uses MacDialKit to validate callback
 status and buffer length before reading a report, logging invalid reports. The

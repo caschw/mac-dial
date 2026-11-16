@@ -42,6 +42,25 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.sectionHeader(title: device.isConnected ? "Surface Dial connected" : "Surface Dial not connected"))
         menu.addItem(.separator())
 
+        var notices: [String] = []
+        if settings.recovery != nil {
+            notices.append("Saved settings need attention…")
+        }
+        if !AXIsProcessTrusted() {
+            notices.append("Accessibility permission needed…")
+        }
+        if device.needsInputMonitoringPermission {
+            notices.append("Input Monitoring permission needed…")
+        }
+        for title in notices {
+            let item = NSMenuItem(title: title, action: #selector(openSettings), keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        if !notices.isEmpty {
+            menu.addItem(.separator())
+        }
+
         menu.addItem(NSMenuItem.sectionHeader(title: "Mode"))
         let current = settings.config.currentMode.id
         for (index, mode) in settings.config.enabledModes.enumerated() {
