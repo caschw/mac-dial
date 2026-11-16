@@ -99,18 +99,24 @@ Outline, and Solid render as templates; Color contains light/dark appearance
 variants in the Deep Fir palette. They compile with the existing catalog;
 do not add individual SVGs to Copy Bundle Resources. Check all five Appearance
 choices (including Mode icon) in Settings and on light/dark menu-bar backgrounds.
-Settings loads the compiled `AppIcon` using AppKit's named-image API, which can
-resolve the catalog's material-rendered image in `Assets.car`; it does not open
-the legacy `AppIcon.icns` fallback. AppKit may return raster representations for
-this in-app image; this is not an interactive Icon Composer canvas.
+Settings asks `NSWorkspace` for the running bundle's icon so it follows
+**System Settings > Appearance > Icon & widget style**, including Dark,
+Clear, and Tinted, rather than choosing an image from the catalog directly.
+It refreshes when the icon style or window color scheme changes, when Settings
+appears, and when the app becomes active. The icon-style notification is observed
+by its AppKit notification name because the SDK does not export a typed constant;
+the activation refresh also catches changes if that notification stops arriving.
+AppKit may return raster representations for this in-app image; this is not an
+interactive Icon Composer canvas.
 The app does not replace `NSApp.applicationIconImage`
 or install a custom Dock tile. macOS renders the bundle's layered app icon in
 the Dock and Finder, including its supported material and appearance treatment.
 The system's lighting and small-size presentation need not match Icon Composer's
 large interactive preview exactly.
 
-The built executable's `--render-icon <path.png>` option exports a flattened
-snapshot of the named icon and exits before starting device services. This PNG
+The built executable's `--render-icon <path.png>` option still uses the named
+catalog image, independently of the system icon style, to export a flattened
+snapshot and exits before starting device services. This PNG
 is for inspection only, never the source of the runtime Settings or Dock icon.
 Use Icon Composer for full-resolution, interactive design previews.
 After replacing the icon, quit and relaunch the rebuilt app. If a development

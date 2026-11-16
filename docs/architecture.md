@@ -236,13 +236,16 @@ Solid are template images; Color has catalog-managed light/dark Deep Fir
 variants. Settings and the status item use this same loader. Mode icon retains
 the current tool's symbol and Scroll's two-layer palette; a missing mode symbol
 is logged and falls back to the Orbit Dial template. The persisted `MenuBarGlyph`
-raw values and labels are unchanged. Settings loads the compiled `AppIcon` by
-name through AppKit rather than opening the legacy `AppIcon.icns` fallback.
-This uses the catalog's material-rendered image. AppKit may expose raster
-representations here; an in-app `NSImage` is not an interactive Icon Composer
-canvas.
-An unavailable named asset is logged; the optional `--render-icon` command
-exports a flattened snapshot of that image and fails if the asset is missing.
+raw values and labels are unchanged. Settings uses `SystemAppIcon` to request
+the running bundle's icon through `NSWorkspace`, respecting the system's icon
+style rather than selecting the catalog's default appearance. The view refreshes
+on icon-style notifications, window color-scheme changes, appearance, and app
+activation; subscriptions last only while the view is present and delivery is
+on the main run loop. It does not read or write private appearance preferences.
+AppKit may expose raster representations here; an in-app `NSImage` is not an
+interactive Icon Composer canvas.
+The optional `--render-icon` command separately loads the named `AppIcon` catalog
+asset, logs a missing asset, and exports a flattened snapshot or fails.
 The export is not used by Settings or the Dock. AppDelegate does not override
 `NSApp.applicationIconImage` or the Dock tile: macOS owns the layered application
 icon and its appearance as Settings switches between accessory and regular

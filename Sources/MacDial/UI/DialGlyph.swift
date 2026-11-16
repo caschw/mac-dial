@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import MacDialKit
 
 enum DialGlyph {
@@ -41,6 +42,10 @@ enum DialGlyph {
         return image
     }
 
+    static func systemAppIcon() -> NSImage {
+        NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+    }
+
     static func writePNG(_ image: NSImage, size: Int, to url: URL) throws {
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size,
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -51,5 +56,39 @@ enum DialGlyph {
         image.draw(in: NSRect(x: 0, y: 0, width: size, height: size))
         NSGraphicsContext.restoreGraphicsState()
         try rep.representation(using: .png, properties: [:])?.write(to: url)
+    }
+
+}
+
+struct SystemAppIcon: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var icon = DialGlyph.systemAppIcon()
+
+    // AppKit posts this notification without exporting an SDK constant.
+    private static let iconAppearanceDidChange =
+        Notification.Name("NSWorkspaceIconAppearanceConfigurationDidChangeNotification")
+
+    var body: some View {
+        Image(nsImage: icon)
+            .resizable()
+            .accessibilityLabel("Mac Dial")
+            .onAppear(perform: refreshIcon)
+            .onChange(of: colorScheme) { refreshIcon() }
+            .onReceive(
+                NSWorkspace.shared.notificationCenter.publisher(for: Self.iconAppearanceDidChange)
+                    .receive(on: RunLoop.main)
+            ) { _ in
+                refreshIcon()
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+                    .receive(on: RunLoop.main)
+            ) { _ in
+                refreshIcon()
+            }
+    }
+
+    private func refreshIcon() {
+        icon = DialGlyph.systemAppIcon()
     }
 }
